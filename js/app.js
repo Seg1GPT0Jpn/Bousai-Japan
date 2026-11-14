@@ -177,7 +177,9 @@
     const savedList = codes.map((c) => `<div class="saved"><div class="t"><b>${esc(PREFS[+c - 1])}</b><small>避難場所 ${saved[c].n.toLocaleString()}・避難所 ${saved[c].nJo != null ? saved[c].nJo.toLocaleString() : '未保存（保存し直してください）'}・取得日 ${esc(saved[c].updated || '不明')}</small></div><button class="btn ghost sm" data-del="${c}">削除</button></div>`).join('');
     return `${back()}${head('pin', 'c-blue', jo ? '避難所を探す' : '避難場所を探す', jo ? '指定避難所（危険がなくなるまで、しばらく過ごす施設）' : '指定緊急避難場所（命を守るために緊急に避難する場所）')}
     <div class="seg" role="group" aria-label="探すもの"><button data-kind="basho" class="${jo ? '' : 'on'}">${icon('alert')}避難場所（まず逃げる）</button><button data-kind="jo" class="${jo ? 'on' : ''}">${icon('home')}避難所（しばらく過ごす）</button></div>
-    ${jo ? `<div class="alert red">${icon('alert')}<span>災害が起きたときは、避難所ではなく、その災害に対応した「避難場所」へ逃げてください。避難所は、危険がなくなるまで一時的に過ごす施設です。</span></div>`
+    ${jo ? `<div class="alert red">${icon('alert')}<span>災害が起きたときは、避難所ではなく、その災害に対応した「避難場所」へ逃げてください。避難所は、危険がなくなるまで一時的に過ごす施設です。</span></div>
+    <div class="list"><a class="row" href="https://vacan.com/map" target="_blank" rel="noopener">${icon('users')}<span class="t"><b>避難所の混雑状況を見る（VACAN Maps）</b><small>導入している自治体の避難所は、職員が「空いています・やや混雑・混雑・満」を更新しています</small></span><span class="end">${icon('chevron')}</span></a></div>
+    <p class="small" style="margin:-4px 0 12px">すべての自治体・避難所がのっているわけではありません。お住まいの自治体の防災ページや、防災無線・広報の情報も確認してください。</p>`
     : `<div class="sec" style="margin-top:4px">災害の種類</div>
     <div class="seg">${HAZARDS.map((h) => `<button class="${h.k === hz ? 'on' : ''}" data-hz="${h.k}">${icon(h.icon)}${esc(h.s || h.n)}</button>`).join('')}</div>
     <div class="note">${icon('info')}<span>避難場所は災害の種類ごとに指定されています。選んだ災害に対応する場所だけを表示します。</span></div>`}
