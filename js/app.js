@@ -26,10 +26,11 @@
     const saved = Object.keys(SH.saved());
     const hz = store.get('hz', 'quake');
     return `
-    <div class="sec" style="margin-top:4px">災害が起きたら</div>
+    <section class="emb" aria-labelledby="emh"><h2 id="emh">${icon('alert')}災害が起きたら</h2>
     <a class="em red" href="#/shake">${icon('alert')}<div><b>いま揺れている</b><small>まず身を守る</small></div>${icon('chevron', 'go')}</a>
     <a class="em navy" href="#/after">${icon('after')}<div><b>揺れがおさまった</b><small>次にやること</small></div>${icon('chevron', 'go')}</a>
     <a class="em blue" href="#/tsunami">${icon('wave')}<div><b>津波のおそれ</b><small>より高いところへ</small></div>${icon('chevron', 'go')}</a>
+    </section>
     <div class="sec">避難場所</div>
     <div class="box accent"><h3>${icon('pin')}近くの避難場所を探す</h3>
       <p>${saved.length ? '保存したデータで、電波がなくても探せます。' : '都道府県のデータを先に保存しておくと、電波がなくても探せます。'}</p>
@@ -44,7 +45,7 @@
       ${row('#/tools', 'light', 'ツール', 'ライト・呼び笛・経過タイマー・171')}
     </div>
     ${NOTICE}
-    <p class="foot"><a href="#/about">このアプリについて・ご利用上の注意</a></p>`;
+    <p class="foot"><a href="#/about">このアプリについて・ご利用上の注意・文字の大きさ</a></p>`;
   }
 
   // ---------- 災害時 ----------
@@ -175,7 +176,7 @@
     const n = i == null ? todayQuiz() : (+i % QUIZ.length); const q = QUIZ[n];
     view.querySelectorAll('.opt').forEach((b) => b.addEventListener('click', () => {
       const k = +b.dataset.k; const st = store.get('quiz', {}); if (st[n] == null) { st[n] = k === q.c ? 1 : 0; store.set('quiz', st); }
-      view.querySelectorAll('.opt').forEach((x) => { x.disabled = true; const kk = +x.dataset.k; if (kk === q.c) x.classList.add('right'); else if (kk === k) x.classList.add('wrong'); });
+      view.querySelectorAll('.opt').forEach((x) => { x.disabled = true; const kk = +x.dataset.k; if (kk === q.c) { x.classList.add('right'); x.insertAdjacentHTML('beforeend', '<span class="mk">正解</span>'); } else if (kk === k) { x.classList.add('wrong'); x.insertAdjacentHTML('beforeend', '<span class="mk">あなたの答え</span>'); } });
       document.getElementById('exp').innerHTML = `<div class="exp"><b>${k === q.c ? '正解です' : '正解は ' + 'ABC'[q.c] + '「' + esc(q.a[q.c]) + '」'}</b><p style="margin:6px 0 0">${esc(q.e)}</p>${srcHtml(q.src)}</div>`;
     }));
   }
@@ -275,6 +276,8 @@
     <div class="box"><h3>${icon('book')}出典</h3>${Object.values(SRC).map((s) => `<p style="font-size:14px"><a href="${s.url}" target="_blank" rel="noopener">${esc(s.name)}</a></p>`).join('')}
       <p style="font-size:14px">避難場所データ：国土地理院「指定緊急避難場所・指定避難所データ」をもとに Bousai Japan が加工して作成（公共データ利用規約 第1.0版）。</p>
       <p style="font-size:14px">QRコード：QR Code Generator for JavaScript（Kazuhiko Arase, MIT License）。QRコードは株式会社デンソーウェーブの登録商標です。</p></div>
+    <div class="sec">文字の大きさ</div>
+    <div class="sizes">${[['m', '標準'], ['l', '大'], ['xl', '特大']].map(([k, t]) => `<button data-size="${k}" class="${(store.get('size', 'm')) === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     <button class="btn plain" id="wipe">この端末の保存データを消す</button>`;
   }
 
@@ -331,6 +334,7 @@
       const upd = () => { const s = Math.max(0, Math.floor((Date.now() - store.get('quakeStart', Date.now())) / 1000)); const hh = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60; clock.textContent = (hh ? hh + ':' + String(mm).padStart(2, '0') : mm) + ':' + String(ss).padStart(2, '0'); };
       upd(); tick = setInterval(upd, 500);
     }
+    view.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => { store.set('size', b.dataset.size); document.documentElement.dataset.size = b.dataset.size; view.querySelectorAll('[data-size]').forEach((x) => x.classList.toggle('on', x === b)); }));
     const wipe = document.getElementById('wipe');
     if (wipe) wipe.addEventListener('click', async () => { if (confirm('チェック・家族メモ・トレーニング・タイマー・保存した避難場所データを、この端末から消します。よろしいですか？')) { for (const c of Object.keys(SH.saved())) await SH.remove(c); ['check', 'family', 'quakeStart', 'quiz', 'hz'].forEach((k) => store.del(k)); location.hash = '#/'; } });
   }
@@ -354,6 +358,7 @@
   const upd = () => { net.hidden = navigator.onLine; };
   window.addEventListener('online', upd); window.addEventListener('offline', upd); upd();
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  document.documentElement.dataset.size = store.get('size', 'm');
   window.addEventListener('hashchange', render);
   render();
 })();
