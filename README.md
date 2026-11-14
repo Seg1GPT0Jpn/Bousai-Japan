@@ -36,6 +36,7 @@
 ## ファイル
 - `index.html` … 画面のわく
 - `css/app.css` … デザイン（ライト／ダーク、片手で押しやすい大きさ）
+- `css/fonts.css`・`fonts/` … BIZ UDPゴシック（Morisawa, SIL Open Font License 1.1）。文字の範囲ごとに分けたファイルで、表示に必要な分だけ読みこむ
 - `js/content.js` … 表示する内容・出典・クイズ・災害の種類
 - `js/app.js` … 画面の切りかえと操作
 - `js/shelters.js` … 避難場所の保存・距離と方角の計算（端末内）
