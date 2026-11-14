@@ -31,8 +31,9 @@
     <a class="em navy" href="#/after">${icon('after')}<div><b>揺れがおさまった</b><small>次にやること</small></div>${icon('chevron', 'go')}</a>
     <a class="em blue" href="#/tsunami">${icon('wave')}<div><b>津波のおそれ</b><small>より高いところへ</small></div>${icon('chevron', 'go')}</a>
     </section>
+    ${setupLeft() ? `<a class="box accent" href="#/start" style="display:block;text-decoration:none;border-top-color:var(--orange)"><h3>${icon('check')}はじめての準備（あと${setupLeft()}つ）</h3><p style="margin:0">電波があるうちに、避難場所データの保存などをすませておきましょう。</p></a>` : ''}
     <div class="sec">いまの状況<a href="#/info">くわしく${icon('chevron')}</a></div>
-    <div id="live">${liveSkeleton()}</div>
+    <div id="hb"></div><div id="live">${liveSkeleton()}</div>
     <div class="sec">避難場所</div>
     <div class="box accent"><h3>${icon('pin')}近くの避難場所を探す</h3>
       <p>${saved.length ? '保存したデータで、電波がなくても探せます。' : '都道府県のデータを先に保存しておくと、電波がなくても探せます。'}</p>
@@ -49,7 +50,7 @@
       ${row('#/tools', 'phone', 'いざという時の道具', '家族に無事を知らせる・居場所を伝える・助けを呼ぶ')}
     </div>
     ${NOTICE}
-    <p class="foot"><a href="#/about">このアプリについて・ご利用上の注意・文字の大きさ</a></p>`;
+    <p class="foot"><a href="#/start">はじめての準備</a>　｜　<a href="#/lang">Language・言語</a>　｜　<a href="#/about">このアプリについて・文字の大きさ</a>　｜　<a href="#/privacy">プライバシーポリシー</a></p>`;
   }
 
   // ---------- 災害時 ----------
@@ -264,7 +265,13 @@
   const wChips = (list) => list.length ? list.map((w) => `<span class="lv lv${w.level}">${esc(w.name)}</span>`).join('') : '<span>発表されている警報・注意報はありません</span>';
   const intBadge = (mx) => { const c = LIVE.INT[mx]; return c ? `<span class="si" style="background:${c[0]};color:${c[1]}" aria-label="最大震度${c[2]}">${c[2]}</span>` : '<span class="si" aria-label="震度なし">－</span>'; };
   const eewState = () => LIVE.wsState === 'on' ? '<span class="dot on"></span>受信待機中（このアプリを開いている間だけ）' : '<span class="dot"></span>接続していません（通信を確認）';
+  async function healthBanner(el) {
+    if (!el || !navigator.onLine) return;
+    if (!LIVE.health || Date.now() - LIVE.health.at > 600000) await LIVE.check();
+    if (!LIVE.health.ok && document.body.contains(el)) el.innerHTML = `<div class="alert red">${icon('alert')}<span>${esc(LIVE.health.issues.join('。'))}。気象庁のデータの形式が変わったか、更新が止まっている可能性があります。最新の情報は<a href="https://www.jma.go.jp/bosai/" target="_blank" rel="noopener" style="color:inherit">気象庁のページ</a>で確認してください。</span></div>`;
+  }
   async function fillLive() {
+    healthBanner(document.getElementById('hb'));
     const a = LIVE.area(); const $ = (id) => document.getElementById(id);
     if (!a || !$('lw')) return;
     $('le').innerHTML = eewState();
@@ -281,7 +288,7 @@
       <label class="small" for="ipref">都道府県</label><select id="ipref"><option value="">選んでください</option>${opts}</select>
       <div id="ioff" style="margin-top:8px"></div><div id="ic20" style="margin-top:8px"></div>
       <p class="small" style="margin:8px 0 0">市区町村まで選ぶと、その地域の警報・注意報だけを表示します。地域はこの端末にだけ保存します。</p></div>
-    <div id="eewbox"></div>
+    <div id="hb"></div><div id="eewbox"></div>
     <div class="list">${row('#/weather', 'wave', '天気と雨雲レーダー', '近くの気温・湿度・雨、天気予報、雨雲の動き')}</div>
     <div id="tsubox"></div>
     <div class="sec">警報・注意報${a ? `<a href="${LIVE.links.warning(a.office)}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a>` : ''}</div>
@@ -340,6 +347,7 @@
       LIVE.volcanoes().then((vs) => { $('vbox').innerHTML = vs.map((v) => `<a class="row" href="https://www.jma.go.jp/bosai/volcano/#type=warning&event_id=${esc(v.id)}" target="_blank" rel="noopener">${icon('volcano')}<span class="t"><b>${esc(v.name)}</b><small>${esc(v.label)}　${LIVE.fmtTime(v.at)}</small></span><span class="end">${icon('chevron')}</span></a>`).join('') || '<div class="qrow">噴火警報が出ている火山はありません</div>'; }).catch(() => { $('vbox').innerHTML = '<div class="qrow">取得できませんでした</div>'; });
     };
     load();
+    healthBanner(document.getElementById('hb'));
     clearInterval(tick); tick = setInterval(load, 60000);
   }
 
@@ -527,6 +535,53 @@
     <a class="btn" href="tel:171">${icon('phone')}171 に電話する</a>
     ${srcHtml('ntt')}`;
   }
+  // ---------- はじめての準備 ----------
+  function setupLeft() { let n = 0; if (!Object.keys(SH.saved()).length) n++; if (!LIVE.area()) n++; if (!store.get('eewChecked', false)) n++; if (!store.get('installed', false) && !matchMedia('(display-mode: standalone)').matches) n++; return n; }
+  let deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; });
+  function start() {
+    const saved = Object.keys(SH.saved()); const a = LIVE.area(); const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const done = (ok) => ok ? `<span class="lv" style="background:var(--green);color:#fff">完了</span>` : `<span class="lv" style="border:1px solid var(--line)">まだ</span>`;
+    return `${head('check', 'c-green', 'はじめての準備', '電波があるうちに、1回だけやっておくこと')}
+    <div class="box"><h3>${icon('info')}言語・Language</h3><div class="sizes">${[['ja', '日本語'], ['ez', 'やさしい にほんご'], ['en', 'English']].map(([k, t]) => `<button data-lang="${k}" class="${I18N.lang === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <div class="box"><h3>${icon('download')}1. 避難場所のデータを保存する ${done(saved.length)}</h3><p>家や学校のある都道府県のデータを保存すると、電波がなくても近くの避難場所・避難所を探せます。</p><a class="btn ${saved.length ? 'plain' : ''}" href="#/find" style="margin-bottom:0">${saved.length ? '保存したデータを見る' : 'データを保存する'}</a></div>
+    <div class="box"><h3>${icon('bell')}2. 地域を設定する ${done(a)}</h3><p>自分の地域の警報・注意報や天気予報が、ホームに出るようになります。</p><a class="btn ${a ? 'plain' : ''}" href="#/info" style="margin-bottom:0">${a ? '地域を変える' : '地域を設定する'}</a></div>
+    <div class="box"><h3>${icon('phone')}3. スマホ本体の「緊急速報」をオンにする ${done(store.get('eewChecked', false))}</h3>
+      <p>緊急地震速報や津波警報は、スマホ本体の機能（緊急速報メール・エリアメール）で届きます。このアプリは、開いている間しか緊急地震速報を受け取れません。</p>
+      <ul class="dots" style="margin:0 0 8px;padding-left:1.2em"><li><b>iPhone</b>：設定 → 通知 → いちばん下の「緊急速報」がオンになっているか確認</li><li><b>Android</b>：設定アプリで「緊急速報」と検索し、オンになっているか確認（機種によってメニューの名前がちがいます）</li></ul>
+      <button class="btn ${store.get('eewChecked', false) ? 'plain' : ''}" id="eewok" style="margin-bottom:0">確認した</button></div>
+    <div class="box"><h3>${icon('home')}4. ホーム画面に追加する ${done(store.get('installed', false) || matchMedia('(display-mode: standalone)').matches)}</h3>
+      <p>アプリのようにすぐ開けて、電波がなくても使いやすくなります。</p>
+      ${deferredInstall ? `<button class="btn" id="inst">ホーム画面に追加する</button>` : ''}
+      <ul class="dots" style="margin:0 0 8px;padding-left:1.2em">${ios ? '' : '<li><b>Android（Chrome）</b>：右上の︙メニュー →「ホーム画面に追加」または「アプリをインストール」</li>'}<li><b>iPhone（Safari）</b>：下の共有ボタン（四角から矢印）→「ホーム画面に追加」</li>${ios ? '<li><b>Android（Chrome）</b>：右上の︙メニュー →「ホーム画面に追加」または「アプリをインストール」</li>' : ''}</ul>
+      <button class="btn plain" id="instok" style="margin-bottom:0">追加した</button></div>
+    <a class="btn" href="#/">ホームへ</a>`;
+  }
+  function bindStart() {
+    view.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { I18N.set(b.dataset.lang); location.reload(); }));
+    const e = document.getElementById('eewok'); if (e) e.addEventListener('click', () => { store.set('eewChecked', true); render(); });
+    const i = document.getElementById('instok'); if (i) i.addEventListener('click', () => { store.set('installed', true); render(); });
+    const p = document.getElementById('inst'); if (p) p.addEventListener('click', async () => { deferredInstall.prompt(); const r = await deferredInstall.userChoice; if (r.outcome === 'accepted') store.set('installed', true); deferredInstall = null; render(); });
+  }
+  function langPage() {
+    return `${back()}${head('info', 'c-blue', 'Language・言語', '')}
+    <div class="list">${[['ja', '日本語', 'Japanese'], ['ez', 'やさしい にほんご', 'Easy Japanese'], ['en', 'English', '英語']].map(([k, t, sub]) => `<button class="row" data-lang="${k}">${icon(I18N.lang === k ? 'check' : 'chevron')}<span class="t"><b>${t}</b><small>${sub}</small></span></button>`).join('')}</div>
+    <p class="small">やさしい日本語・英語は、画面の説明を言いかえたものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。</p>
+    <p class="small">Easy Japanese and English are translations of this app's explanations. Place names, facility names and Japan Meteorological Agency (JMA) data are shown in Japanese. For official wording, check the Japanese text and the sources.</p>`;
+  }
+  // ---------- プライバシーポリシー ----------
+  function privacy() {
+    return `${back()}${head('shield', 'c-blue', 'プライバシーポリシー', '2026年11月 制定')}
+    <div class="box"><h3>1. 集めない情報</h3><p>Bousai Japan は、利用者の情報を集めるサーバーを持っていません。現在地、家族メモ、そなえチェック、トレーニングの結果、設定した地域などを、開発者が受け取ることはありません。アクセス解析や広告のしくみも使っていません。</p></div>
+    <div class="box"><h3>2. 端末の中に保存する情報</h3><p>家族メモ、チェック、設定（地域・言語・文字の大きさ）、保存した避難場所データは、お使いの端末のブラウザの中（localStorage・Cache Storage）にだけ保存します。ブラウザのデータを消すか、「このアプリについて」の画面の「保存データを消す」で消せます。</p></div>
+    <div class="box"><h3>3. 現在地（位置情報）</h3><p>避難場所までの距離の計算、地図の表示、近くの観測所の天気の表示、無事を知らせる文面への地図リンクの追加（選んだときだけ）に使います。端末の中で計算し、保存せず、開発者には送りません。</p></div>
+    <div class="box"><h3>4. 外部のサイトとの通信</h3><p>次の情報を取りにいくとき、その提供元に通信が発生します（通常のウェブサイトと同じく、IPアドレスなどの通信情報が相手に届きます）。現在地や家族メモを送ることはありません。</p>
+      <ul class="dots" style="padding-left:1.2em;margin:0"><li>気象庁（警報・注意報、地震、津波、火山、天気、雨雲レーダー）</li><li>P2P地震情報（緊急地震速報の中継）</li><li>国土地理院（地図の画像）、ハザードマップポータルサイト（浸水想定などの画像）</li></ul>
+      <p>「Googleマップで歩くルート」や外部サイトへのリンクを開いた場合は、その先のサービスのプライバシーポリシーが適用されます。Googleマップでは、目的地と現在地がGoogleに送られます。</p></div>
+    <div class="box"><h3>5. QRコードでの受け渡し</h3><p>家族メモをQRコードで渡す機能は、内容をQRコード（URLの#以降）に入れて渡すもので、サーバーを通りません。QRコードを見せた相手には内容が伝わるので、見せる相手に注意してください。</p></div>
+    <div class="box"><h3>6. お問い合わせ</h3><p>ご意見・不具合の報告は、GitHub の問い合わせ欄（Issues）で受け付けています。書きこんだ内容は公開されるので、個人情報は書かないでください。</p><a class="btn plain" href="https://github.com/Seg1GPT0Jpn/Bousai-Japan/issues" target="_blank" rel="noopener" style="margin-bottom:0">問い合わせ欄を開く（GitHub）</a></div>
+    <div class="box"><h3>7. 変更</h3><p>このポリシーを変えるときは、この画面でお知らせします。</p></div>`;
+  }
   function about() {
     return `${back()}${head('info', 'c-blue', 'このアプリについて', 'ご利用上の注意')}
     <div class="box"><p>Bousai Japan は、防災の知識を身につけ、災害時に「次に何をするか」を判断するのを助ける、無料の防災Webアプリです。</p></div>
@@ -541,6 +596,7 @@
     <div class="box"><h3>${icon('book')}出典</h3>${Object.values(SRC).map((s) => `<p style="font-size:14px"><a href="${s.url}" target="_blank" rel="noopener">${esc(s.name)}</a></p>`).join('')}
       <p style="font-size:14px">避難場所データ：国土地理院「指定緊急避難場所・指定避難所データ」をもとに Bousai Japan が加工して作成（公共データ利用規約 第1.0版）。</p>
       <p style="font-size:14px">QRコード：QR Code Generator for JavaScript（Kazuhiko Arase, MIT License）。QRコードは株式会社デンソーウェーブの登録商標です。</p></div>
+    <div class="list">${row('#/privacy', 'shield', 'プライバシーポリシー', '集めない情報・端末に保存する情報')}${row('#/lang', 'info', 'Language・言語', '日本語・やさしい日本語・English')}${row('#/start', 'check', 'はじめての準備', 'データの保存・地域・緊急速報・ホーム画面')}</div>
     <div class="sec">文字の大きさ</div>
     <div class="sizes">${[['m', '標準'], ['l', '大'], ['xl', '特大']].map(([k, t]) => `<button data-size="${k}" class="${(store.get('size', 'm')) === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     <button class="btn plain" id="wipe">この端末の保存データを消す</button>`;
@@ -580,6 +636,9 @@
       case 'timer': html = timer(); break;
       case '171': html = t171(); break;
       case 'about': html = about(); break;
+      case 'start': html = start(); break;
+      case 'lang': html = langPage(); break;
+      case 'privacy': html = privacy(); break;
       default: html = home();
     }
     view.innerHTML = html;
@@ -590,6 +649,8 @@
     view.querySelectorAll('[data-ck]').forEach((el) => el.addEventListener('change', () => { const st = store.get('check', {}); st[el.dataset.ck] = el.checked; store.set('check', st); const p = checkProgress(); const bar = view.querySelector('.bar i'); if (bar) bar.style.width = p.p + '%'; const b = document.getElementById('ckn'); if (b) { b.textContent = `${p.d} / ${p.n} 完了`; b.nextElementSibling.textContent = p.p + '%'; } }));
     if (r === '') view.querySelectorAll('[data-hz]').forEach((b) => b.addEventListener('click', () => { store.set('hz', b.dataset.hz); view.querySelectorAll('[data-hz]').forEach((x) => x.classList.toggle('on', x === b)); }));
     if (r === 'info') bindInfo();
+    if (r === 'start') bindStart();
+    if (r === 'lang') view.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { I18N.set(b.dataset.lang); location.reload(); }));
     if (r === 'weather') bindWeather();
     if (r === '') { fillLive(); tick = setInterval(fillLive, 60000); }
     if (r === 'find') { bindFind().then(() => { if (h[1] === 'go' || HAZARDS.some((x) => x.k === h[1])) { const g = document.getElementById('go'); if (g && !lastPos) g.click(); } }); }
@@ -631,6 +692,7 @@
   window.addEventListener('online', upd); window.addEventListener('offline', upd); upd();
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   document.documentElement.dataset.size = store.get('size', 'm');
+  if (!store.get('seenStart', false) && (location.hash || '#/') === '#/') { store.set('seenStart', true); location.hash = '#/start'; }
   LIVE.startEew(showEew);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') LIVE.startEew(showEew); });
   window.addEventListener('hashchange', render);

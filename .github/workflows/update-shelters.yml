@@ -1,0 +1,40 @@
+# 国土地理院の避難場所・避難所データを、月に1回取り直す。
+# 変わっていれば main に自動でコミットし、GitHub Pages が新しいデータで公開しなおされる。
+name: 避難場所データの更新
+
+on:
+  schedule:
+    - cron: '17 18 1 * *'   # 毎月2日 3:17（日本時間）
+  workflow_dispatch:         # Actions の画面から手動でも実行できる
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 公式データをダウンロードして変換
+        run: python3 scripts/build_shelters.py
+      - name: 件数の確認（大きく減っていたら止める）
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          a = json.load(open('data/shelters/index.json')); b = json.load(open('data/hinanjo/index.json'))
+          n1 = sum(p['n'] for p in a['prefs'].values()); n2 = sum(p['n'] for p in b['prefs'].values())
+          print('指定緊急避難場所', n1, '指定避難所', n2)
+          if n1 < 90000 or n2 < 60000:
+              sys.exit('件数が少なすぎます。元データの形式が変わった可能性があるため、更新を止めました。')
+          PY
+      - name: 変わっていればコミット
+        run: |
+          if git diff --quiet -- data; then echo '変更なし'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data
+          git commit -m "避難場所データを更新（$(date +%Y-%m-%d)）"
+          git push

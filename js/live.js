@@ -43,6 +43,7 @@ const LIVE = {
   })(),
   async warnings(a) {
     const reports = await this.getJson(`${JMA}/warning/data/r8/${a.office}.json`);
+    if (!Array.isArray(reports) || (reports.length && !reports[0].warning)) throw new Error('データの形式が変わった可能性があります');
     const found = new Map(); let latest = '';
     for (const rep of reports) {
       if (rep.reportDatetime > latest) latest = rep.reportDatetime;
@@ -95,6 +96,25 @@ const LIVE = {
     }
     const sev = { '15': 5, '25': 5, '14': 4, '24': 4, '13': 3, '23': 3, '36': 3, '12': 2, '22': 2 };
     return out.sort((x, y) => sev[y.code] - sev[x.code] || (y.at > x.at ? 1 : -1));
+  },
+
+  // ---------- データの点検：形式が変わったり、更新が止まったりしていないか ----------
+  health: null,
+  async check() {
+    const issues = [];
+    try {
+      const mt = await this.getJson(`${JMA}/warning/data/r8/map_time.json`);
+      const t = new Date(mt.latestControlDatetime);
+      if (isNaN(t)) issues.push('警報・注意報のデータの形式が変わった可能性があります');
+      else if (Date.now() - t > 2 * 86400e3) issues.push('警報・注意報のデータが2日以上更新されていません');
+    } catch (e) { issues.push('警報・注意報のデータを読みこめません'); }
+    try {
+      const q = await this.getJson(`${JMA}/quake/data/list.json`);
+      if (!Array.isArray(q) || !q.length || !('maxi' in q[0])) issues.push('地震情報のデータの形式が変わった可能性があります');
+      else if (Date.now() - new Date(q[0].rdt) > 4 * 86400e3) issues.push('地震情報のデータがしばらく更新されていません');
+    } catch (e) { issues.push('地震情報のデータを読みこめません'); }
+    this.health = { ok: !issues.length, issues, at: Date.now() };
+    return this.health;
   },
   // ---------- 緊急地震速報（警報）：P2P地震情報 API を中継（アプリを開いている間だけ） ----------
   ws: null, wsTry: 0, onEew: null, seen: new Set(), wsState: 'off',
