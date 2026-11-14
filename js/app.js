@@ -43,6 +43,7 @@
     <div class="list" style="margin-top:12px">
       ${row('#/learn', 'book', '今日の1問', esc(QUIZ[todayQuiz()].q))}
       ${row('#/family', 'users', '家族メモ', '集合場所・連絡先・防災カード')}
+      ${row('#/weather', 'wave', '天気と雨雲レーダー', '近くの気温・湿度・雨、天気予報')}
       ${row('#/rain', 'flood', '大雨・台風のとき', '警戒レベルと、とるべき行動')}
       ${row('#/rinji', 'megaphone', '南海トラフ地震臨時情報', '発表されたら何をするか')}
       ${row('#/tools', 'phone', 'いざという時の道具', '家族に無事を知らせる・居場所を伝える・助けを呼ぶ')}
@@ -102,6 +103,65 @@
       ${row('#/info', 'bell', 'いまの警報・注意報', '自分の地域の情報')}
     </div>
     ${srcHtml(RAIN.src)}`;
+  }
+
+  function weather() {
+    const a = LIVE.area();
+    return `${back()}${head('wave', 'c-amber', '天気と雨雲レーダー', '避難所で過ごすときや、雨の様子を知りたいときに')}
+    <div class="sec" style="margin-top:0">いまの気温・湿度（近くの観測所）</div>
+    <div class="box" id="wnow"><button class="btn" id="wgo" style="margin:0">${icon('locate')}現在地の近くの観測値を見る</button>
+      <p class="small" style="margin:8px 0 0">気象庁のアメダス（全国の観測所）のうち、現在地に近いところの最新の値を出します。現在地は計算にだけ使い、送りません。</p></div>
+    <div class="sec">天気予報${a ? `（${esc(a.officeName)}）` : ''}</div>
+    <div class="box" id="wfc">${a ? '読みこみ中…' : `地域を設定すると表示します。<a class="btn plain" href="#/info" style="margin-bottom:0">地域を設定する</a>`}</div>
+    <div class="sec">雨雲レーダー<a href="${LIVE.links.rain}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a></div>
+    <div id="radar" class="map" style="height:380px" role="img" aria-label="雨雲レーダーの地図"></div>
+    <div class="box" style="padding:12px 16px">
+      <div style="display:flex;align-items:center;gap:10px"><button class="btn sm" id="rplay">${icon('timer')}再生</button><b id="rtime" style="font-variant-numeric:tabular-nums">…</b></div>
+      <input type="range" id="rslider" min="0" max="0" value="0" style="width:100%;margin:10px 0 4px" aria-label="時刻">
+      <div class="small" style="display:flex;justify-content:space-between"><span>1時間前</span><span>現在</span><span>1時間後（予測）</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span class="small">弱い雨</span><span style="flex:1;height:10px;border-radius:5px;background:linear-gradient(90deg,#A0D2FF,#218CFF,#0041FF,#FAF500,#FF9900,#FF2800,#B40068)"></span><span class="small">猛烈な雨</span></div>
+    </div>
+    <div class="list">
+      <a class="row" href="https://www.wbgt.env.go.jp/" target="_blank" rel="noopener">${icon('info')}<span class="t"><b>熱中症予防情報（暑さ指数）</b><small>環境省</small></span><span class="end">${icon('chevron')}</span></a>
+      <a class="row" href="${LIVE.links.risk}" target="_blank" rel="noopener">${icon('map')}<span class="t"><b>キキクル（大雨の危険度分布）</b><small>気象庁</small></span><span class="end">${icon('chevron')}</span></a>
+    </div>
+    <p class="src">出典：<a href="https://www.jma.go.jp/bosai/" target="_blank" rel="noopener">気象庁ホームページ</a>（アメダス・天気予報・高解像度降水ナウキャスト）のデータをもとに Bousai Japan が加工して表示。観測所の値は、現在地の値と同じとは限りません。</p>`;
+  }
+  let rmap = null;
+  async function bindWeather() {
+    const $ = (id) => document.getElementById(id); const a = LIVE.area(); rmap = null;
+    $('wgo').addEventListener('click', async () => {
+      $('wnow').innerHTML = '<p>現在地と観測値を調べています…</p>';
+      try {
+        const p = await SH.locate(); lastPos = p; if (rmap) rmap.setView([p.latitude, p.longitude], 9); const w = await LIVE.amedasNear(p.latitude, p.longitude);
+        const cell = (lab, x, unit, extra = '') => `<div class="wc"><span class="small">${lab}</span><b>${x ? `${x.v}<small>${unit}</small>` : '－'}</b>${extra}${x ? `<span class="small">${esc(x.name)}（約${SH.fmtDist(x.d)}）</span>` : ''}</div>`;
+        $('wnow').innerHTML = `<div class="wgrid">${cell('気温', w.temp, '℃')}${cell('湿度', w.humidity, '%')}${cell('1時間の雨', w.rain, 'mm')}${cell('風', w.wind, 'm/s', w.windDir != null ? `<span class="small">${LIVE.DIR16[w.windDir] || ''}の風</span>` : '')}</div><p class="small" style="margin:8px 0 0">${LIVE.fmtTime(w.time)} の観測</p>`;
+      } catch (e) { $('wnow').innerHTML = `<p>${esc(e.message || '取得できませんでした')}</p>`; }
+    });
+    if (a) {
+      try { await LIVE.municipalities(a.office); } catch (e) { /* 市区町村の表がなくても予報は出せる */ }
+      LIVE.forecast(a).then((f) => {
+        const hh = (t) => new Date(t).getHours();
+        $('wfc').innerHTML = `<p class="small" style="margin:0 0 6px">${esc(f.area)}　${LIVE.fmtTime(f.at)} 発表</p>
+          ${f.days.map((d, i) => `<p style="margin:4px 0"><b>${i ? '明日' : '今日'}</b>　${esc((d.w || '').replace(/　/g, ' '))}</p>`).join('')}
+          <p style="margin:8px 0 4px"><b>降水確率</b>　${f.pops.map((x) => `${hh(x.t)}時〜 ${x.p}%`).join('　')}</p>
+          <p style="margin:4px 0 0"><b>気温（${esc(f.temps.name)}）</b>　${f.temps.v.map((v, i) => `${i % 2 ? '日中の最高' : '朝の最低'} ${v}℃`).join('　')}</p>`;
+      }).catch(() => { $('wfc').textContent = '取得できませんでした（通信を確認してください）'; });
+    }
+    if (!MAP.ok()) { $('radar').outerHTML = '<div class="note">雨雲レーダーは通信があるときだけ見られます。</div>'; return; }
+    const ctr = lastPos ? [lastPos.latitude, lastPos.longitude] : [36.2, 138.3];
+    const m = L.map('radar', { zoomControl: true }).setView(ctr, lastPos ? 9 : 5); rmap = m;
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 14, attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>' }).addTo(m);
+    let times = []; try { times = await LIVE.radarTimes(); } catch (e) { $('rtime').textContent = '取得できませんでした'; return; }
+    const nowIdx = times.findIndex((x) => x.f) - 1;
+    const layers = times.map((x) => L.tileLayer(LIVE.radarUrl(x), { opacity: 0, maxNativeZoom: 10, maxZoom: 14, minZoom: 4, attribution: '気象庁 高解像度降水ナウキャスト' }));
+    layers.forEach((l) => l.addTo(m));
+    const sl = $('rslider'); sl.max = times.length - 1; sl.value = nowIdx;
+    const show = (i) => { layers.forEach((l, k) => l.setOpacity(k === +i ? 0.75 : 0)); const t = LIVE.utcToLocal(times[i].validtime); $('rtime').textContent = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}${times[i].f ? '（予測）' : (+i === nowIdx ? '（現在）' : '')}`; };
+    sl.addEventListener('input', () => show(sl.value)); show(nowIdx);
+    let play = null;
+    $('rplay').addEventListener('click', () => { if (play) { clearInterval(play); play = null; return; } let i = 0; play = setInterval(() => { sl.value = i; show(i); i = (i + 1) % times.length; }, 700); });
+    window.addEventListener('hashchange', () => { if (play) clearInterval(play); }, { once: true });
   }
 
   // ---------- 避難場所 ----------
@@ -220,6 +280,7 @@
       <div id="ioff" style="margin-top:8px"></div><div id="ic20" style="margin-top:8px"></div>
       <p class="small" style="margin:8px 0 0">市区町村まで選ぶと、その地域の警報・注意報だけを表示します。地域はこの端末にだけ保存します。</p></div>
     <div id="eewbox"></div>
+    <div class="list">${row('#/weather', 'wave', '天気と雨雲レーダー', '近くの気温・湿度・雨、天気予報、雨雲の動き')}</div>
     <div id="tsubox"></div>
     <div class="sec">警報・注意報${a ? `<a href="${LIVE.links.warning(a.office)}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a>` : ''}</div>
     <div class="box" id="wbox">${a ? '読みこみ中…' : '地域を選ぶと表示します。'}</div>
@@ -508,6 +569,7 @@
       case 'find': html = await find(h[1]); break;
       case 'info': html = info(); break;
       case 'rain': html = rain(); break;
+      case 'weather': html = weather(); break;
       case 'learn': html = learn(h[1]); break;
       case 'check': html = check(); break;
       case 'family': html = family(); break;
@@ -526,6 +588,7 @@
     view.querySelectorAll('[data-ck]').forEach((el) => el.addEventListener('change', () => { const st = store.get('check', {}); st[el.dataset.ck] = el.checked; store.set('check', st); const p = checkProgress(); const bar = view.querySelector('.bar i'); if (bar) bar.style.width = p.p + '%'; const b = document.getElementById('ckn'); if (b) { b.textContent = `${p.d} / ${p.n} 完了`; b.nextElementSibling.textContent = p.p + '%'; } }));
     if (r === '') view.querySelectorAll('[data-hz]').forEach((b) => b.addEventListener('click', () => { store.set('hz', b.dataset.hz); view.querySelectorAll('[data-hz]').forEach((x) => x.classList.toggle('on', x === b)); }));
     if (r === 'info') bindInfo();
+    if (r === 'weather') bindWeather();
     if (r === '') { fillLive(); tick = setInterval(fillLive, 60000); }
     if (r === 'find') { bindFind().then(() => { if (h[1] === 'go' || HAZARDS.some((x) => x.k === h[1])) { const g = document.getElementById('go'); if (g && !lastPos) g.click(); } }); }
     if (r === 'learn') bindLearn(h[1]);

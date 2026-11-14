@@ -118,6 +118,43 @@ const LIVE = {
       this.ws.onerror = () => { try { this.ws.close(); } catch (e) { /* なし */ } };
     } catch (e) { this.wsState = 'off'; }
   },
+
+  // ---------- 天気（アメダスの観測値・天気予報） ----------
+  amTable: null,
+  async amedasNear(lat, lng) {
+    this.amTable = this.amTable || await this.getJson(`${JMA}/amedas/const/amedastable.json`);
+    const t = (await (await fetch(`${JMA}/amedas/data/latest_time.txt`, { cache: 'no-cache' })).text()).trim();
+    const d = new Date(t); const p2 = (n) => String(n).padStart(2, '0');
+    const key = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}00`;
+    const obs = await this.getJson(`${JMA}/amedas/data/map/${key}.json`);
+    const st = Object.entries(this.amTable).map(([id, v]) => ({ id, name: v.kjName, lat: v.lat[0] + v.lat[1] / 60, lng: v.lon[0] + v.lon[1] / 60, o: obs[id] })).filter((x) => x.o)
+      .map((x) => ({ ...x, d: SH.dist(lat, lng, x.lat, x.lng) })).sort((a, b) => a.d - b.d);
+    const pick = (k) => st.find((x) => x.o[k] && x.o[k][0] != null && x.o[k][1] === 0);
+    const val = (k) => { const x = pick(k); return x ? { v: x.o[k][0], name: x.name, d: x.d } : null; };
+    return { time: t, temp: val('temp'), humidity: val('humidity'), rain: val('precipitation1h'), wind: val('wind'), windDir: (pick('wind') || {}).o?.windDirection?.[0] };
+  },
+  DIR16: ['静穏', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西', '北'],
+  async forecast(a) {
+    const f = await this.getJson(`${JMA}/forecast/data/forecast/${a.office}.json`);
+    const s0 = f[0].timeSeries;
+    let c10 = null;
+    if (a.c20 && this.areaConst) { const v = this.areaConst.class20s[a.c20]; const c15 = v && this.areaConst.class15s[v.parent]; c10 = c15 && c15.parent; }
+    const ar = s0[0].areas.find((x) => x.area.code === c10) || s0[0].areas[0];
+    const pop = (s0[1].areas.find((x) => x.area.code === ar.area.code) || s0[1].areas[0]);
+    const tmp = s0[2].areas[0];
+    return { at: f[0].reportDatetime, area: ar.area.name, days: s0[0].timeDefines.map((t, i) => ({ t, w: (ar.weathers || [])[i] })).slice(0, 2),
+      pops: s0[1].timeDefines.map((t, i) => ({ t, p: pop.pops[i] })).slice(0, 4), temps: { name: tmp.area.name, v: tmp.temps } };
+  },
+  // ---------- 雨雲レーダー（高解像度降水ナウキャスト） ----------
+  async radarTimes() {
+    const past = await this.getJson(`${JMA}/jmatile/data/nowc/targetTimes_N1.json`);
+    const fut = await this.getJson(`${JMA}/jmatile/data/nowc/targetTimes_N2.json`);
+    const p = past.slice(0, 13).reverse().map((x) => ({ ...x, f: false }));
+    const f = fut.slice().reverse().filter((x, i) => i % 1 === 0).map((x) => ({ ...x, f: true }));
+    return [...p, ...f];
+  },
+  radarUrl(x) { return `${JMA}/jmatile/data/nowc/${x.basetime}/none/${x.validtime}/surf/hrpns/{z}/{x}/{y}.png`; },
+  utcToLocal(s) { return new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8), +s.slice(8, 10), +s.slice(10, 12))); },
   SCALE: { 45: '震度5弱', 50: '震度5強', 55: '震度6弱', 60: '震度6強', 70: '震度7', 99: '' },
   fmtTime(s) { const d = new Date(typeof s === 'string' ? s.replace(/\//g, '-').replace(' ', 'T') : s); if (isNaN(d)) return ''; const y = d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}年` : ''; return `${y}${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; },
   links: {
