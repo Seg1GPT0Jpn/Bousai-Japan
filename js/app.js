@@ -43,6 +43,7 @@
     <div class="list" style="margin-top:12px">
       ${row('#/learn', 'book', '今日の1問', esc(QUIZ[todayQuiz()].q))}
       ${row('#/family', 'users', '家族メモ', '集合場所・連絡先・防災カード')}
+      ${row('#/rain', 'flood', '大雨・台風のとき', '警戒レベルと、とるべき行動')}
       ${row('#/rinji', 'megaphone', '南海トラフ地震臨時情報', '発表されたら何をするか')}
       ${row('#/tools', 'phone', 'いざという時の道具', '家族に無事を知らせる・居場所を伝える・助けを呼ぶ')}
     </div>
@@ -86,6 +87,21 @@
     <div class="alert red">${icon('alert')}<span>${esc(RINJI.note)}</span></div>
     <a class="btn" href="#/check">${icon('check')}1週間のそなえをチェック</a>
     ${srcHtml(RINJI.src)}`;
+  }
+
+  function rain() {
+    return `${back()}${head('flood', 'c-blue', '大雨・台風のとき', '洪水・土砂災害・高潮')}
+    <p class="lead">${esc(RAIN.lead)}</p>
+    <div class="sec" style="margin-top:0">警戒レベルと、とるべき行動</div>
+    <div class="list">${LEVELS.map((l) => `${l.lv === 4 ? '<div class="lvsep">～～ 警戒レベル４までに必ず避難！ ～～</div>' : ''}<div class="lvrow${l.lv === 4 || l.lv === 3 ? ' em3' : ''}"><span class="lvn" style="background:${l.color};color:${l.fg}">警戒<br>レベル<b>${l.lv}</b></span><div><b>${esc(l.act)}</b><p>${esc(l.info)}（${esc(l.by)}）${l.jma ? `<br><span class="small">気象庁の情報：${esc(l.jma)}</span>` : ''}</p>${l.note ? `<p class="small">${esc(l.note)}</p>` : ''}</div></div>`).join('')}</div>
+    <p class="small">警戒レベルに相当する気象情報が出ても、同じ時刻に同じレベルの避難情報が出るとは限りません。</p>
+    <ol class="steps">${RAIN.points.map((a) => `<li><b>${esc(a.t)}</b><p>${esc(a.d)}</p>${a.link ? `<a href="${a.link}">避難場所とハザードマップを確認${icon('chevron')}</a>` : ''}</li>`).join('')}</ol>
+    <div class="list">
+      <a class="row" href="${LIVE.links.risk}" target="_blank" rel="noopener">${icon('map')}<span class="t"><b>キキクル（大雨の危険度分布）</b><small>気象庁</small></span><span class="end">${icon('chevron')}</span></a>
+      <a class="row" href="${MAP.hazPortal()}" target="_blank" rel="noopener">${icon('flood')}<span class="t"><b>重ねるハザードマップ</b><small>家や学校が危険な区域か確かめる</small></span><span class="end">${icon('chevron')}</span></a>
+      ${row('#/info', 'bell', 'いまの警報・注意報', '自分の地域の情報')}
+    </div>
+    ${srcHtml(RAIN.src)}`;
   }
 
   // ---------- 避難場所 ----------
@@ -139,10 +155,12 @@
         <p class="small" style="margin:-4px 0 8px">矢印は北を上にした方角です（位置の誤差：約${Math.round(lastPos.accuracy)}m）</p>
         ${list.length && MAP.ok() ? '<div id="fmap" class="map" role="img" aria-label="現在地と近くの避難場所の地図"></div>' : ''}
         ${list.length ? `<div class="list">${list.map((x, i) => resCard({ ...x, i }, hzNow(), jo)).join('')}</div>` : `<div class="note">${jo ? '保存したデータに避難所が見つかりませんでした。データを保存し直すか、別の都道府県のデータが必要かもしれません。' : '保存したデータに、この災害に対応する避難場所が見つかりませんでした。別の都道府県のデータが必要かもしれません。'}</div>`}
+        ${list.length && MAP.ok() && !jo ? `<p class="small" style="margin:-4px 0 12px">地図の左下で、浸水や土砂災害の危険がある区域を重ねて表示できます（色が濃いほど深い浸水が想定されています）。<a href="https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/img/shinsui_legend3.png" target="_blank" rel="noopener">浸水の深さの凡例</a>・<a href="${MAP.hazPortal(lastPos.latitude.toFixed(5), lastPos.longitude.toFixed(5))}" target="_blank" rel="noopener">重ねるハザードマップで現在地を見る</a></p>` : ''}
         <div class="note">${icon('route')}<span>「Googleマップで歩くルート」は、Googleマップが道順を出します。ルートは浸水・がけ・通行止めなどの危険を考えていません。周りの状況を自分の目で確かめて、危ない道は避けてください。開くと、目的地と現在地がGoogleに送られます。</span></div>`;
       const el = document.getElementById('fmap');
       if (el) {
         const m = MAP.make(el, lastPos.latitude, lastPos.longitude, 15);
+        if (!jo) MAP.hazLayers(m, ['flood', 'tsunami', 'landslide', 'storm'].includes(hzNow()) ? hzNow() : (hzNow() === 'inland' ? 'flood' : null));
         L.marker([lastPos.latitude, lastPos.longitude], { icon: MAP.dot('#0017C1', '') }).addTo(m).bindPopup('現在地（およそ）');
         const pts = [[lastPos.latitude, lastPos.longitude]];
         list.forEach((x, i) => { const r = x.r; pts.push([r[2], r[3]]); L.marker([r[2], r[3]], { icon: MAP.dot('#197A4B', i + 1) }).addTo(m).bindPopup(`<b>${esc(r[0])}</b><br>${SH.fmtDist(x.d)}（直線）<br><a href="${MAP.gmapsWalk(r[2], r[3])}" target="_blank" rel="noopener">Googleマップで歩くルート</a>`); });
@@ -205,13 +223,14 @@
     <div id="tsubox"></div>
     <div class="sec">警報・注意報${a ? `<a href="${LIVE.links.warning(a.office)}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a>` : ''}</div>
     <div class="box" id="wbox">${a ? '読みこみ中…' : '地域を選ぶと表示します。'}</div>
+    <a class="row" href="#/rain" style="border:1px solid var(--line);border-radius:8px;background:var(--surface);margin-bottom:12px">${icon('flood')}<span class="t"><b>警戒レベルと、とるべき行動</b><small>レベル４で危険な場所から全員避難</small></span><span class="end">${icon('chevron')}</span></a>
     <div class="sec">地震情報<a href="${LIVE.links.quake}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a></div>
     <div id="qmapw"></div><div class="list" id="qbox"><div class="qrow">読みこみ中…</div></div>
     <div class="sec">火山（噴火警報が出ている火山）<a href="${LIVE.links.volcano}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a></div>
     <div class="list" id="vbox"><div class="qrow">読みこみ中…</div></div>
     <div class="sec">気象庁などのページ</div>
     <div class="list">
-      ${[['キキクル（大雨による危険度分布）', 'map', LIVE.links.risk], ['雨雲の動き', 'wave', LIVE.links.rain], ['津波警報・注意報', 'wave', LIVE.links.tsunami], ['時系列で見る警報・注意報', 'timer', LIVE.links.timeline], ['リアルタイム震度（Yahoo!天気・災害）', 'quake', 'https://typhoon.yahoo.co.jp/weather/jp/earthquake/kyoshin/'], ['強震モニタ（防災科学技術研究所・リアルタイムの揺れ）', 'quake', LIVE.links.kmoni], ['ハザードマップポータルサイト', 'map', 'https://disaportal.gsi.go.jp/']].map(([t, ic, u]) => `<a class="row" href="${u}" target="_blank" rel="noopener">${icon(ic)}<span class="t"><b style="font-size:16px">${t}</b></span><span class="end">${icon('chevron')}</span></a>`).join('')}
+      ${[['キキクル（大雨による危険度分布）', 'map', LIVE.links.risk], ['雨雲の動き', 'wave', LIVE.links.rain], ['津波警報・注意報', 'wave', LIVE.links.tsunami], ['時系列で見る警報・注意報', 'timer', LIVE.links.timeline], ['リアルタイム震度（Yahoo!天気・災害）', 'quake', 'https://typhoon.yahoo.co.jp/weather/jp/earthquake/kyoshin/'], ['強震モニタ（防災科学技術研究所・リアルタイムの揺れ）', 'quake', LIVE.links.kmoni], ['重ねるハザードマップ（ハザードマップポータルサイト）', 'map', 'https://disaportal.gsi.go.jp/maps/']].map(([t, ic, u]) => `<a class="row" href="${u}" target="_blank" rel="noopener">${icon(ic)}<span class="t"><b style="font-size:16px">${t}</b></span><span class="end">${icon('chevron')}</span></a>`).join('')}
     </div>
     ${SRC_JMA}
     <p class="src">緊急地震速報：<a href="https://www.p2pquake.net/" target="_blank" rel="noopener">P2P地震情報</a> のAPIで受け取った、気象庁の緊急地震速報（警報）の内容をそのまま表示します。配信は無保証で、届かない・遅れることがあります。このアプリを開いている間しか受け取れないので、スマホ本体の緊急速報（エリアメール等）を必ずオンにしてください。</p>`;
@@ -297,6 +316,7 @@
     <div class="list">
       ${row('#/shake', 'alert', '場所ごとの身の守り方', '教室・家・登下校・電車など')}
       ${row('#/tsunami', 'wave', '津波から逃げる', 'より高いところへ')}
+      ${row('#/rain', 'flood', '大雨・台風のとき', '警戒レベル')}
       ${row('#/rinji', 'megaphone', '南海トラフ地震臨時情報', '発表されたら何をするか')}
       ${row('#/171', 'phone', '災害用伝言ダイヤル171', '録音と再生のしかた')}
     </div>`;
@@ -419,7 +439,7 @@
         const p = await SH.locate(); const la = p.latitude.toFixed(5), ln = p.longitude.toFixed(5);
         const txt = `北緯 ${la}　東経 ${ln}（誤差 約${Math.round(p.accuracy)}m）`;
         $('where').innerHTML = `<p style="font-size:22px;font-weight:700;margin:10px 0 4px;font-variant-numeric:tabular-nums">北緯 ${la}<br>東経 ${ln}</p><p class="small">誤差 約${Math.round(p.accuracy)}m</p>
-          <div class="links2"><a class="btn sm" href="${MAP.gsiMap(la, ln, 17)}" target="_blank" rel="noopener">${icon('map')}地図で見る</a><button class="btn sm plain" id="wshare">${icon('route')}送る</button></div>`;
+          <div class="links2"><a class="btn sm" href="${MAP.gsiMap(la, ln, 17)}" target="_blank" rel="noopener">${icon('map')}地図で見る</a><a class="btn sm plain" href="${MAP.hazPortal(la, ln)}" target="_blank" rel="noopener">${icon('flood')}ハザードマップ</a><button class="btn sm plain" id="wshare">${icon('route')}送る</button></div>`;
         $('wshare').addEventListener('click', async () => { const t = `いまここにいます\n${txt}\n${MAP.gsiMap(la, ln, 17)}`; if (navigator.share) { try { await navigator.share({ text: t }); } catch (e) { /* 閉じた */ } } else { try { await navigator.clipboard.writeText(t); $('wshare').textContent = 'コピーしました'; } catch (e) { /* なし */ } } });
       } catch (e) { $('where').innerHTML = `<p class="small">${esc(e.message)}</p>`; }
     });
@@ -487,6 +507,7 @@
       case 'rinji': html = rinji(); break;
       case 'find': html = await find(h[1]); break;
       case 'info': html = info(); break;
+      case 'rain': html = rain(); break;
       case 'learn': html = learn(h[1]); break;
       case 'check': html = check(); break;
       case 'family': html = family(); break;
