@@ -793,3 +793,21 @@ I18N_LANGS.tl = {
     [/^東経 ([\d.]+)$/, 'Longitude $1'],
   ],
 };
+
+// 追加分（設定画面）
+Object.assign(I18N_LANGS.tl.dict, {
+ "設定": "Settings",
+ "Settings": "Settings",
+ "設定・Language": "Settings・Language",
+ "そのほか": "Iba pa",
+ "あとから右上の「設定」でも変えられます。": "Mababago mo rin ito mamaya sa “Settings” sa kanang itaas.",
+ "日本語以外の表示は、画面の説明を訳したものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。": "Ang mga wika maliban sa Japanese ay salin ng paliwanag ng app. Ang mga pangalan ng lugar, pasilidad at impormasyon ng Japan Meteorological Agency ay nananatili sa Japanese. Para sa opisyal na nilalaman, tingnan ang Japanese na teksto at ang mga pinagmulan.",
+ "避難場所データの保存・削除": "I-save o burahin ang data ng evacuation site",
+ "保存した都道府県を見る": "Tingnan ang mga na-save na prefecture",
+ "地域の設定": "Setting ng lugar",
+ "警報・注意報・天気予報を出す地域": "Lugar para sa mga babala, paalala at weather forecast",
+ "ご利用上の注意・出典・問い合わせ": "Paalala sa paggamit, mga pinagmulan, contact",
+ "ご意見・不具合の報告": "Puna at ulat ng problema",
+ "GitHub の問い合わせ欄（Issues）": "GitHub Issues (contact)",
+ "言語（Language）・文字の大きさ・はじめての準備・プライバシー": "Wika (Language), laki ng teksto, unang paghahanda, privacy"
+});

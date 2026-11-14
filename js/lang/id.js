@@ -793,3 +793,21 @@ I18N_LANGS.id = {
     [/^東経 ([\d.]+)$/, 'Bujur Timur $1'],
   ],
 };
+
+// 追加分（設定画面）
+Object.assign(I18N_LANGS.id.dict, {
+ "設定": "Pengaturan",
+ "Settings": "Pengaturan",
+ "設定・Language": "Pengaturan・Language",
+ "そのほか": "Lainnya",
+ "あとから右上の「設定」でも変えられます。": "Anda juga bisa mengubahnya nanti di “Pengaturan” di kanan atas.",
+ "日本語以外の表示は、画面の説明を訳したものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。": "Bahasa selain Jepang adalah terjemahan penjelasan aplikasi. Nama tempat, nama fasilitas, dan informasi Badan Meteorologi Jepang tetap ditampilkan dalam bahasa Jepang. Untuk isi resmi, periksa teks bahasa Jepang dan sumbernya.",
+ "避難場所データの保存・削除": "Simpan atau hapus data lokasi evakuasi",
+ "保存した都道府県を見る": "Lihat prefektur yang disimpan",
+ "地域の設定": "Pengaturan wilayah",
+ "警報・注意報・天気予報を出す地域": "Wilayah untuk peringatan, imbauan, dan prakiraan cuaca",
+ "ご利用上の注意・出典・問い合わせ": "Catatan penggunaan, sumber, kontak",
+ "ご意見・不具合の報告": "Masukan & laporan masalah",
+ "GitHub の問い合わせ欄（Issues）": "Kolom kontak GitHub (Issues)",
+ "言語（Language）・文字の大きさ・はじめての準備・プライバシー": "Bahasa (Language), ukuran teks, persiapan awal, privasi"
+});

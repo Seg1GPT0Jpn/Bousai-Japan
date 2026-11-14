@@ -793,3 +793,21 @@ I18N_LANGS.vi = {
     [/^東経 ([\d.]+)$/, 'Kinh độ Đông $1'],
   ],
 };
+
+// 追加分（設定画面）
+Object.assign(I18N_LANGS.vi.dict, {
+ "設定": "Cài đặt",
+ "Settings": "Cài đặt",
+ "設定・Language": "Cài đặt・Language",
+ "そのほか": "Khác",
+ "あとから右上の「設定」でも変えられます。": "Bạn có thể đổi lại sau tại “Cài đặt” ở góc trên bên phải.",
+ "日本語以外の表示は、画面の説明を訳したものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。": "Các ngôn ngữ ngoài tiếng Nhật là bản dịch phần giải thích của ứng dụng. Địa danh, tên cơ sở và thông tin của Cơ quan Khí tượng Nhật Bản vẫn hiển thị bằng tiếng Nhật. Nội dung chính thức, hãy kiểm tra bản tiếng Nhật và nguồn.",
+ "避難場所データの保存・削除": "Lưu・xóa dữ liệu địa điểm sơ tán",
+ "保存した都道府県を見る": "Xem các tỉnh đã lưu",
+ "地域の設定": "Cài đặt khu vực",
+ "警報・注意報・天気予報を出す地域": "Khu vực hiển thị cảnh báo, khuyến cáo, dự báo thời tiết",
+ "ご利用上の注意・出典・問い合わせ": "Lưu ý khi sử dụng・nguồn・liên hệ",
+ "ご意見・不具合の報告": "Góp ý・báo lỗi",
+ "GitHub の問い合わせ欄（Issues）": "Mục liên hệ GitHub (Issues)",
+ "言語（Language）・文字の大きさ・はじめての準備・プライバシー": "Ngôn ngữ (Language)・cỡ chữ・chuẩn bị ban đầu・quyền riêng tư"
+});

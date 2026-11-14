@@ -793,3 +793,21 @@ I18N_LANGS.pt = {
     [/^東経 ([\d.]+)$/, 'Long. $1'],
   ],
 };
+
+// 追加分（設定画面）
+Object.assign(I18N_LANGS.pt.dict, {
+ "設定": "Configurações",
+ "Settings": "Configurações",
+ "設定・Language": "Configurações・Language",
+ "そのほか": "Outros",
+ "あとから右上の「設定」でも変えられます。": "Você também pode mudar depois em “Configurações”, no canto superior direito.",
+ "日本語以外の表示は、画面の説明を訳したものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。": "Os idiomas além do japonês são traduções das explicações do app. Nomes de lugares, instalações e as informações da Agência Meteorológica do Japão continuam em japonês. Para o texto oficial, confira a versão em japonês e as fontes.",
+ "避難場所データの保存・削除": "Salvar ou apagar dados de locais de evacuação",
+ "保存した都道府県を見る": "Ver províncias salvas",
+ "地域の設定": "Configuração da região",
+ "警報・注意報・天気予報を出す地域": "Região para alertas, avisos e previsão do tempo",
+ "ご利用上の注意・出典・問い合わせ": "Avisos de uso, fontes, contato",
+ "ご意見・不具合の報告": "Opiniões e relatos de erros",
+ "GitHub の問い合わせ欄（Issues）": "Página de contato no GitHub (Issues)",
+ "言語（Language）・文字の大きさ・はじめての準備・プライバシー": "Idioma (Language), tamanho do texto, preparação inicial, privacidade"
+});
