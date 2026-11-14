@@ -23,31 +23,34 @@ const SH = {
     } catch (e) { return cache ? cache.match(url) : null; }
   },
   saved() { return store.get('prefsSaved', {}); },
+  // 避難場所（命を守るために逃げる場所）と避難所（しばらく過ごす場所）の両方を保存する
   async download(code) {
     const res = await this.fetchData(`data/shelters/${code}.json`, true);
-    if (!res) throw new Error('ダウンロードできませんでした。インターネットにつながっているか確認してください。');
-    const j = await res.clone().json();
-    const s = this.saved(); s[code] = { at: Date.now(), updated: j.updated, n: j.rows.length }; store.set('prefsSaved', s);
-    delete this.mem[code];
+    const res2 = await this.fetchData(`data/hinanjo/${code}.json`, true);
+    if (!res || !res2) throw new Error('ダウンロードできませんでした。インターネットにつながっているか確認してください。');
+    const j = await res.clone().json(); const j2 = await res2.clone().json();
+    const s = this.saved(); s[code] = { at: Date.now(), updated: j.updated, n: j.rows.length, nJo: j2.rows.length }; store.set('prefsSaved', s);
+    delete this.mem[code]; delete this.mem['jo' + code];
     return j;
   },
   async remove(code) {
-    try { const c = await caches.open(SH_CACHE); await c.delete(`data/shelters/${code}.json`); } catch (e) { /* なし */ }
-    const s = this.saved(); delete s[code]; store.set('prefsSaved', s); delete this.mem[code];
+    try { const c = await caches.open(SH_CACHE); await c.delete(`data/shelters/${code}.json`); await c.delete(`data/hinanjo/${code}.json`); } catch (e) { /* なし */ }
+    const s = this.saved(); delete s[code]; store.set('prefsSaved', s); delete this.mem[code]; delete this.mem['jo' + code];
   },
   mem: {},
-  async rows(code) {
-    if (this.mem[code]) return this.mem[code];
+  async rows(code, jo) {
+    const key = (jo ? 'jo' : '') + code;
+    if (this.mem[key]) return this.mem[key];
     let res = null;
-    try { const c = await caches.open(SH_CACHE); res = await c.match(`data/shelters/${code}.json`); } catch (e) { /* なし */ }
+    try { const c = await caches.open(SH_CACHE); res = await c.match(`data/${jo ? 'hinanjo' : 'shelters'}/${code}.json`); } catch (e) { /* なし */ }
     if (!res) return [];
     const j = await res.json();
-    this.mem[code] = j.rows;
+    this.mem[key] = j.rows;
     return j.rows;
   },
-  async all() {
+  async all(jo) {
     const out = [];
-    for (const code of Object.keys(this.saved())) (await this.rows(code)).forEach((r) => out.push(r));
+    for (const code of Object.keys(this.saved())) (await this.rows(code, jo)).forEach((r) => out.push(r));
     return out;
   },
   // 2点間の距離（m）と方角（度：北=0、時計回り）
@@ -67,15 +70,15 @@ const SH = {
   fmtDist(m) { return m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(m < 10000 ? 1 : 0)}km`; },
   // rows: [name, addr, lat, lng, flags]  flags: HAZARDS の順のビット
   has(r, hz) { const i = HAZARDS.findIndex((h) => h.k === hz); return i >= 0 && (r[4] & (1 << i)) !== 0; },
-  async nearest(lat, lng, hz, n = 10) {
-    const rows = await this.all();
-    return rows.filter((r) => this.has(r, hz)).map((r) => ({ r, d: this.dist(lat, lng, r[2], r[3]), b: this.bearing(lat, lng, r[2], r[3]) }))
+  async nearest(lat, lng, hz, n = 10, jo) {
+    const rows = await this.all(jo);
+    return rows.filter((r) => jo || this.has(r, hz)).map((r) => ({ r, d: this.dist(lat, lng, r[2], r[3]), b: this.bearing(lat, lng, r[2], r[3]) }))
       .sort((a, b) => a.d - b.d).slice(0, n);
   },
-  async search(text, hz, n = 30) {
+  async search(text, hz, n = 30, jo) {
     const t = text.trim(); if (!t) return [];
-    const rows = await this.all();
-    return rows.filter((r) => (!hz || this.has(r, hz)) && (r[0].includes(t) || r[1].includes(t))).slice(0, n).map((r) => ({ r }));
+    const rows = await this.all(jo);
+    return rows.filter((r) => (jo || !hz || this.has(r, hz)) && (r[0].includes(t) || r[1].includes(t))).slice(0, n).map((r) => ({ r }));
   },
   locate() {
     return new Promise((resolve, reject) => {

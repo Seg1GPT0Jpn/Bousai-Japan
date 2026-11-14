@@ -97,11 +97,14 @@
     let hz = store.get('hz', 'quake');
     if (mode && HAZARDS.some((h) => h.k === mode)) { hz = mode; store.set('hz', hz); }
     const prefOpts = idx ? Object.entries(idx.prefs).map(([c, p]) => `<option value="${c}">${esc(p.name)}（${p.n.toLocaleString()}か所・${Math.round(p.bytes / 1024 / 1024 * 10) / 10 || 0.1}MB）</option>`).join('') : '';
-    const savedList = codes.map((c) => `<div class="saved"><div class="t"><b>${esc(PREFS[+c - 1])}</b><small>${saved[c].n.toLocaleString()}か所・データ取得日 ${esc(saved[c].updated || '不明')}</small></div><button class="btn ghost sm" data-del="${c}">削除</button></div>`).join('');
-    return `${back()}${head('pin', 'c-blue', '避難場所を探す', '指定緊急避難場所（命を守るために緊急に避難する場所）')}
-    <div class="sec" style="margin-top:4px">災害の種類</div>
+    const jo = store.get('kind', 'basho') === 'jo';
+    const savedList = codes.map((c) => `<div class="saved"><div class="t"><b>${esc(PREFS[+c - 1])}</b><small>避難場所 ${saved[c].n.toLocaleString()}・避難所 ${saved[c].nJo != null ? saved[c].nJo.toLocaleString() : '未保存（保存し直してください）'}・取得日 ${esc(saved[c].updated || '不明')}</small></div><button class="btn ghost sm" data-del="${c}">削除</button></div>`).join('');
+    return `${back()}${head('pin', 'c-blue', jo ? '避難所を探す' : '避難場所を探す', jo ? '指定避難所（危険がなくなるまで、しばらく過ごす施設）' : '指定緊急避難場所（命を守るために緊急に避難する場所）')}
+    <div class="seg" role="group" aria-label="探すもの"><button data-kind="basho" class="${jo ? '' : 'on'}">${icon('alert')}避難場所（まず逃げる）</button><button data-kind="jo" class="${jo ? 'on' : ''}">${icon('home')}避難所（しばらく過ごす）</button></div>
+    ${jo ? `<div class="alert red">${icon('alert')}<span>災害が起きたときは、避難所ではなく、その災害に対応した「避難場所」へ逃げてください。避難所は、危険がなくなるまで一時的に過ごす施設です。</span></div>`
+    : `<div class="sec" style="margin-top:4px">災害の種類</div>
     <div class="seg">${HAZARDS.map((h) => `<button class="${h.k === hz ? 'on' : ''}" data-hz="${h.k}">${icon(h.icon)}${esc(h.s || h.n)}</button>`).join('')}</div>
-    <div class="note">${icon('info')}<span>避難場所は災害の種類ごとに指定されています。選んだ災害に対応する場所だけを表示します。</span></div>
+    <div class="note">${icon('info')}<span>避難場所は災害の種類ごとに指定されています。選んだ災害に対応する場所だけを表示します。</span></div>`}
     ${codes.length ? `<button class="btn" id="go">${icon('locate')}現在地から近い順に探す</button>` : `<div class="alert">${icon('download')}<span>まず下で、自宅や学校のある都道府県のデータを保存してください（電波があるときに1回だけ）。</span></div>`}
     <div id="out" aria-live="polite"></div>
     ${codes.length ? `<div class="sec">名前・住所で探す</div><input type="search" id="q" placeholder="例：〇〇小学校、〇〇町" enterkeyhint="search"><div id="qout" class="list" style="margin-top:10px" hidden></div>` : ''}
@@ -112,28 +115,30 @@
       <select id="pref"><option value="">選んでください</option>${prefOpts}</select>
       <button class="btn" id="dl" disabled>${icon('download')}保存する</button>
       <p class="ok" id="dlmsg" aria-live="polite"></p>
-      <p class="small" style="margin:0">家と学校の都道府県がちがう場合は、両方保存できます。</p></div>
+      <p class="small" style="margin:0">避難場所と避難所のデータを一緒に保存します。家と学校の都道府県がちがう場合は、両方保存できます。</p></div>
     <div class="note">${icon('alert')}<span>距離は「直線距離」で、安全な道順ではありません。川・がけ・浸水しそうな場所を通らないか、自分の目で確認してください。施設が実際に開いているかはわかりません。</span></div>
     <p class="src">出典：<a href="https://hinanmap.gsi.go.jp/index.html" target="_blank" rel="noopener">国土地理院「指定緊急避難場所・指定避難所データ」</a>をもとに Bousai Japan が都道府県ごとに加工して作成（取得日 ${esc(idx ? idx.fetched : '不明')}）。データは市町村が登録したもので、最新でない場合や未掲載の場合があります。最新かつ詳しい状況は、必ずお住まいの市町村に確認してください。データは随時更新されるため、保存したデータはときどき保存し直してください。</p>`;
   }
-  function resCard(x, hz) {
+  function resCard(x, hz, jo) {
     const r = x.r;
     const dir = x.d != null ? `<div class="dir"><span class="arr" style="transform:rotate(${Math.round(x.b)}deg)">${icon('arrow')}</span><b>${SH.fmtDist(x.d)}</b><small>${SH.dirName(x.b)}</small></div>` : '';
     return `<div class="res">${dir}<div><h3>${x.i != null ? `${x.i + 1}. ` : ''}${esc(r[0])}</h3><p>${esc(r[1])}</p>
-      <div class="hz">${HAZARDS.map((h, i) => (r[4] & (1 << i)) ? `<span class="${h.k === hz ? 'on' : ''}">${esc(h.s || h.n)}</span>` : '').join('')}</div>
+      <div class="hz">${jo ? `${r[4] ? '<span>指定緊急避難場所と同じ住所</span>' : ''}${r[5] ? `<span>受入対象：${esc(r[5])}</span>` : ''}` : HAZARDS.map((h, i) => (r[4] & (1 << i)) ? `<span class="${h.k === hz ? 'on' : ''}">${esc(h.s || h.n)}</span>` : '').join('')}</div>
       <div class="links2"><a href="${MAP.gmapsWalk(r[2], r[3])}" target="_blank" rel="noopener">${icon('route')}Googleマップで歩くルート</a><a href="${MAP.gsiMap(r[2], r[3])}" target="_blank" rel="noopener">${icon('map')}地理院地図</a></div></div></div>`;
   }
   async function bindFind() {
     const out = document.getElementById('out');
     const go = document.getElementById('go');
     const hzNow = () => store.get('hz', 'quake');
+    const jo = store.get('kind', 'basho') === 'jo';
+    view.querySelectorAll('[data-kind]').forEach((b) => b.addEventListener('click', () => { store.set('kind', b.dataset.kind); render(); }));
     const show = async () => {
       if (!lastPos) return;
-      const list = await SH.nearest(lastPos.latitude, lastPos.longitude, hzNow(), 10);
-      out.innerHTML = `<div class="sec">「${esc(hzName(hzNow()))}」に対応する近い避難場所</div>
+      const list = await SH.nearest(lastPos.latitude, lastPos.longitude, hzNow(), 10, jo);
+      out.innerHTML = `<div class="sec">${jo ? '近い避難所' : `「${esc(hzName(hzNow()))}」に対応する近い避難場所`}</div>
         <p class="small" style="margin:-4px 0 8px">矢印は北を上にした方角です（位置の誤差：約${Math.round(lastPos.accuracy)}m）</p>
         ${list.length && MAP.ok() ? '<div id="fmap" class="map" role="img" aria-label="現在地と近くの避難場所の地図"></div>' : ''}
-        ${list.length ? `<div class="list">${list.map((x, i) => resCard({ ...x, i }, hzNow())).join('')}</div>` : '<div class="note">保存したデータに、この災害に対応する避難場所が見つかりませんでした。別の都道府県のデータが必要かもしれません。</div>'}
+        ${list.length ? `<div class="list">${list.map((x, i) => resCard({ ...x, i }, hzNow(), jo)).join('')}</div>` : `<div class="note">${jo ? '保存したデータに避難所が見つかりませんでした。データを保存し直すか、別の都道府県のデータが必要かもしれません。' : '保存したデータに、この災害に対応する避難場所が見つかりませんでした。別の都道府県のデータが必要かもしれません。'}</div>`}
         <div class="note">${icon('route')}<span>「Googleマップで歩くルート」は、Googleマップが道順を出します。ルートは浸水・がけ・通行止めなどの危険を考えていません。周りの状況を自分の目で確かめて、危ない道は避けてください。開くと、目的地と現在地がGoogleに送られます。</span></div>`;
       const el = document.getElementById('fmap');
       if (el) {
@@ -153,7 +158,7 @@
       store.set('hz', b.dataset.hz); view.querySelectorAll('[data-hz]').forEach((x) => x.classList.toggle('on', x === b)); await show(); qrun();
     }));
     const q = document.getElementById('q'); const qout = document.getElementById('qout');
-    const qrun = async () => { if (!q) return; const list = await SH.search(q.value, hzNow(), 30); const html = list.map((x) => resCard(x, hzNow())).join(''); qout.hidden = !q.value.trim(); qout.innerHTML = html || '<div class="res"><p>見つかりませんでした（選んでいる災害の種類も確認してください）。</p></div>'; };
+    const qrun = async () => { if (!q) return; const list = await SH.search(q.value, hzNow(), 30, jo); const html = list.map((x) => resCard(x, hzNow(), jo)).join(''); qout.hidden = !q.value.trim(); qout.innerHTML = html || '<div class="res"><p>見つかりませんでした（選んでいる災害の種類も確認してください）。</p></div>'; };
     if (q) q.addEventListener('input', qrun);
     const sel = document.getElementById('pref'); const dl = document.getElementById('dl'); const msg = document.getElementById('dlmsg');
     sel.addEventListener('change', () => { dl.disabled = !sel.value; });

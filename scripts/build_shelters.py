@@ -2,8 +2,11 @@
 """国土地理院「指定緊急避難場所データ」（全国CSV）を、都道府県ごとの軽いJSONに変換する。
 
 使い方:
-  python3 scripts/build_shelters.py                 # 公式サイトから全国CSVをダウンロードして変換
-  python3 scripts/build_shelters.py path/to.csv     # 手元のCSVを変換
+  python3 scripts/build_shelters.py                              # 公式サイトから全国CSVをダウンロードして変換
+  python3 scripts/build_shelters.py 避難場所.csv [避難所.csv]     # 手元のCSVを変換
+
+指定避難所（危険がなくなるまで一時的に滞在する施設）は data/hinanjo/ に出力する。
+各行は [施設・場所名, 住所, 緯度, 経度, 指定緊急避難場所と同じ住所なら1, 受入対象者]。
 
 出力: data/shelters/01.json 〜 47.json と data/shelters/index.json
 各行は [施設・場所名, 住所, 緯度, 経度, 対応災害のビット]。
@@ -17,6 +20,7 @@
 import csv, datetime, io, json, os, sys, urllib.request
 
 URL = 'https://hinanmap.gsi.go.jp/hinanjocp/defaultFtpData/csv/mergeFromCity_2.csv'
+URL_JO = 'https://hinanmap.gsi.go.jp/hinanjocp/defaultFtpData/csv/mergeFromCity_1.csv'
 PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県']
 # HAZARDS（js/content.js）の順番に対応するCSVの列名
 COLS = ['地震', '津波', '洪水', '崖崩れ、土石流及び地滑り', '高潮', '大規模な火事', '内水氾濫', '火山現象']
@@ -74,5 +78,41 @@ def main():
     total = sum(len(v) for v in by.values())
     print(f'{total} 件を変換（除外 {skipped} 件）。取得日 {fetched}')
 
+def build_jo(raw, fetched, root):
+    out_dir = os.path.join(root, 'data', 'hinanjo')
+    os.makedirs(out_dir, exist_ok=True)
+    rows = list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+    by = {i: [] for i in range(47)}
+    for r in rows:
+        city = r.get('都道府県名及び市町村名') or r['住所']
+        pi = next((i for i, p in enumerate(PREFS) if city.startswith(p)), None)
+        try:
+            lat, lng = round(float(r['緯度']), 6), round(float(r['経度']), 6)
+        except ValueError:
+            continue
+        if pi is None:
+            continue
+        same = 1 if (r.get('指定緊急避難場所との住所同一') or '').strip() == '1' else 0
+        accept = (r.get('受入対象者') or '').strip()[:40]
+        by[pi].append([(r['施設・場所名'] or '').strip(), (r['住所'] or '').strip(), lat, lng, same, accept])
+    index = {'source': '国土地理院「指定緊急避難場所・指定避難所データ」（指定避難所）', 'url': 'https://hinanmap.gsi.go.jp/index.html',
+             'license': '公共データ利用規約（第1.0版）', 'fetched': fetched, 'prefs': {}}
+    for i, items in by.items():
+        code = f'{i + 1:02d}'
+        items.sort(key=lambda x: x[1])
+        path = os.path.join(out_dir, f'{code}.json')
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'v': 1, 'pref': PREFS[i], 'updated': fetched, 'rows': items}, f, ensure_ascii=False, separators=(',', ':'))
+        index['prefs'][code] = {'name': PREFS[i], 'n': len(items), 'bytes': os.path.getsize(path)}
+    with open(os.path.join(out_dir, 'index.json'), 'w', encoding='utf-8') as f:
+        json.dump(index, f, ensure_ascii=False, indent=1)
+    print(f"指定避難所 {sum(len(v) for v in by.values())} 件を変換")
+
 if __name__ == '__main__':
     main()
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+    if len(sys.argv) > 2:
+        build_jo(open(sys.argv[2], 'rb').read(), datetime.date.fromtimestamp(os.path.getmtime(sys.argv[2])).isoformat(), root)
+    elif len(sys.argv) == 1:
+        with urllib.request.urlopen(URL_JO, timeout=120) as r:
+            build_jo(r.read(), datetime.date.today().isoformat(), root)

@@ -2,7 +2,7 @@
 // 気象庁・地図・P2P地震情報など他のサイトへの通信は保存しない（いつも最新を取りにいく）。
 // 文字（フォント）は、表示に使った分だけ自動で保存される。アプリのファイルは先に保存し、ネットにつながるときは新しい版を取りにいく（つながらなければ保存した版）。
 // 都道府県の避難場所データは、利用者が「保存する」を押したときだけ別のキャッシュ（bousai-shelters-v1）に入る。
-const CACHE = 'bousai-v4';
+const CACHE = 'bousai-v5';
 const FILES = ['./', 'index.html', 'css/fonts.css', 'css/app.css', 'fonts/biz-udpgothic/hES36X5pHAIBjmS84VL0Bue83nBkUWsdImkzMGXUb1G8eoOcUtmCbUaX.119.woff2', 'js/store.js', 'js/icons.js', 'js/content.js', 'js/shelters.js', 'js/family.js', 'js/map.js', 'js/live.js', 'js/app.js', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css',
   'vendor/qrcode.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'data/shelters/index.json'];
 self.addEventListener('install', (e) => {
@@ -14,7 +14,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  const isPrefData = /\/data\/shelters\/\d{2}\.json$/.test(url.pathname);
+  const isPrefData = /\/data\/(shelters|hinanjo)\/\d{2}\.json$/.test(url.pathname);
   e.respondWith((async () => {
     try {
       const res = await fetch(e.request);
