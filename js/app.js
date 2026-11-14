@@ -206,7 +206,7 @@
     <div class="list" id="vbox"><div class="qrow">読みこみ中…</div></div>
     <div class="sec">気象庁などのページ</div>
     <div class="list">
-      ${[['キキクル（大雨による危険度分布）', 'map', LIVE.links.risk], ['雨雲の動き', 'wave', LIVE.links.rain], ['津波警報・注意報', 'wave', LIVE.links.tsunami], ['時系列で見る警報・注意報', 'timer', LIVE.links.timeline], ['強震モニタ（防災科学技術研究所・リアルタイムの揺れ）', 'quake', LIVE.links.kmoni], ['ハザードマップポータルサイト', 'map', 'https://disaportal.gsi.go.jp/']].map(([t, ic, u]) => `<a class="row" href="${u}" target="_blank" rel="noopener">${icon(ic)}<span class="t"><b style="font-size:16px">${t}</b></span><span class="end">${icon('chevron')}</span></a>`).join('')}
+      ${[['キキクル（大雨による危険度分布）', 'map', LIVE.links.risk], ['雨雲の動き', 'wave', LIVE.links.rain], ['津波警報・注意報', 'wave', LIVE.links.tsunami], ['時系列で見る警報・注意報', 'timer', LIVE.links.timeline], ['リアルタイム震度（Yahoo!天気・災害）', 'quake', 'https://typhoon.yahoo.co.jp/weather/jp/earthquake/kyoshin/'], ['強震モニタ（防災科学技術研究所・リアルタイムの揺れ）', 'quake', LIVE.links.kmoni], ['ハザードマップポータルサイト', 'map', 'https://disaportal.gsi.go.jp/']].map(([t, ic, u]) => `<a class="row" href="${u}" target="_blank" rel="noopener">${icon(ic)}<span class="t"><b style="font-size:16px">${t}</b></span><span class="end">${icon('chevron')}</span></a>`).join('')}
     </div>
     ${SRC_JMA}
     <p class="src">緊急地震速報：<a href="https://www.p2pquake.net/" target="_blank" rel="noopener">P2P地震情報</a> のAPIで受け取った、気象庁の緊急地震速報（警報）の内容をそのまま表示します。配信は無保証で、届かない・遅れることがあります。このアプリを開いている間しか受け取れないので、スマホ本体の緊急速報（エリアメール等）を必ずオンにしてください。</p>`;
