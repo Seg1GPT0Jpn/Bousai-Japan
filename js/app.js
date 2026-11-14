@@ -44,7 +44,7 @@
       ${row('#/learn', 'book', '今日の1問', esc(QUIZ[todayQuiz()].q))}
       ${row('#/family', 'users', '家族メモ', '集合場所・連絡先・防災カード')}
       ${row('#/rinji', 'megaphone', '南海トラフ地震臨時情報', '発表されたら何をするか')}
-      ${row('#/tools', 'light', 'ツール', 'ライト・呼び笛・経過タイマー・171')}
+      ${row('#/tools', 'phone', 'いざという時の道具', '家族に無事を知らせる・居場所を伝える・助けを呼ぶ')}
     </div>
     ${NOTICE}
     <p class="foot"><a href="#/about">このアプリについて・ご利用上の注意・文字の大きさ</a></p>`;
@@ -355,21 +355,74 @@
 
   // ---------- ツール ----------
   function tools() {
-    return `${back()}${head('light', 'c-blue', 'ツール', '')}
-    <div class="list">
-      <button class="row" id="btn-light">${icon('light')}<span class="t"><b>ライト</b><small>画面を白く光らせる</small></span></button>
-      <button class="row" id="btn-whistle">${icon('whistle')}<span class="t"><b id="wl">呼び笛</b><small>音で助けを呼ぶ（もう一度押すと止まる）</small></span></button>
-      ${row('#/timer', 'timer', '経過タイマー', '地震から何分たったか')}
-      ${row('#/171', 'phone', '災害用伝言ダイヤル171', '録音と再生のしかた')}
+    const f = FAMILY.get(); const st = store.get('safeMsg', { state: '無事です', place: '' });
+    return `${back()}${head('phone', 'c-blue', 'いざという時の道具', '連絡する・居場所を伝える・助けを呼ぶ')}
+    <div class="sec" style="margin-top:0">1. 家族に無事を知らせる</div>
+    <div class="box">
+      <div class="seg" role="group" aria-label="いまの状態">${['無事です', '避難しています', 'けがをしています', '助けが必要です'].map((t) => `<button data-st="${t}" class="${st.state === t ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <label class="small" for="splace">いる場所（例：学校の体育館、〇〇小学校）</label>
+      <input type="search" id="splace" value="${esc(st.place || f.meet || '')}" style="margin:4px 0 10px">
+      <label class="ck" style="padding:6px 0;border:0"><input type="checkbox" id="sloc"><span>現在地の地図リンクもつける（送る相手に位置が伝わります）</span></label>
+      <p class="small" style="margin:6px 0 4px">送る文面</p>
+      <div class="note" id="smsg" style="margin:0;color:var(--fg);font-size:16px;white-space:pre-line;overflow-wrap:anywhere"></div>
+      <button class="btn" id="sshare">${icon('route')}送る（メッセージ・メールなど）</button>
+      <a class="btn plain" id="sline" target="_blank" rel="noopener">LINEで送る</a>
+      <button class="btn plain" id="scopy">文面をコピー</button>
+      <p class="small" id="sres" aria-live="polite"></p>
     </div>
-    <p class="small">ライトは画面の明かりで、懐中電灯の代わりにはなりません。呼び笛は、端末の音量やマナーモードによっては鳴りません。</p>
-    <div class="sec">公式の情報（通信が必要）</div>
-    <div class="list">${LINKS.map((l) => `<a class="row" href="${l.url}" target="_blank" rel="noopener">${icon('info')}<span class="t"><b style="font-size:15px">${esc(l.name)}</b></span><span class="end">${icon('chevron')}</span></a>`).join('')}</div>`;
+    <div class="sec">2. 自分のいる場所を伝える</div>
+    <div class="box"><p style="margin:0 0 8px;font-size:15px;color:var(--sub)">迷ったとき・救助を呼ぶときに、緯度・経度（位置の数字）と地図のリンクを伝えられます。</p>
+      <button class="btn" id="whereb">${icon('locate')}現在地を調べる</button><div id="where"></div></div>
+    <div class="sec">3. 助けを呼ぶ</div>
+    <div class="list">
+      <button class="row danger" id="btn-whistle">${icon('whistle')}<span class="t"><b id="wl">助けを呼ぶ音を鳴らす</b><small>閉じこめられたときなどに。もう一度押すと止まる</small></span></button>
+      <a class="row danger" href="tel:119">${icon('phone')}<span class="t"><b>119（火事・救急）</b><small>大きな災害の直後はつながりにくいことがあります</small></span><span class="end">${icon('chevron')}</span></a>
+      <a class="row" href="tel:110">${icon('phone')}<span class="t"><b>110（事件・事故）</b></span><span class="end">${icon('chevron')}</span></a>
+    </div>
+    <div class="sec">4. 通信がつながらないとき</div>
+    <div class="list">
+      ${row('#/171', 'phone', '災害用伝言ダイヤル「171」', '声で伝言を残す・聞く')}
+      <a class="row" href="https://www.web171.jp/" target="_blank" rel="noopener">${icon('card')}<span class="t"><b>災害用伝言板「web171」</b><small>インターネットで伝言を残す・見る</small></span><span class="end">${icon('chevron')}</span></a>
+      <div class="row" style="cursor:default">${icon('info')}<span class="t"><b>無料Wi-Fi「00000JAPAN」</b><small>大きな災害のとき、Wi-Fiの一覧に出たら、パスワードなしで使えます。暗号化されていないので、安否の確認や情報集めにとどめ、パスワードや個人情報は入力しないでください。</small></span></div>
+    </div>
+    <p class="src">出典：<a href="https://www.soumu.go.jp/menu_seisaku/ictseisaku/public_wi-fi/freewifi_00000japan.html" target="_blank" rel="noopener">総務省「災害用統一SSID『00000JAPAN』」</a>、${esc(SRC.ntt.name)}</p>
+    <div class="sec">5. そのほか</div>
+    <div class="list">
+      ${row('#/timer', 'timer', '地震からの経過時間', '津波は数分で来ることがある')}
+      <button class="row" id="btn-light">${icon('light')}<span class="t"><b>画面ライト</b><small>画面を白く光らせる（懐中電灯の代わりにはなりません）</small></span></button>
+    </div>
+    <p class="small">音は、端末の音量やマナーモードによっては鳴りません。</p>`;
+  }
+  function bindTools() {
+    const $ = (id) => document.getElementById(id); if (!$('smsg')) return;
+    let st = store.get('safeMsg', { state: '無事です', place: '' }); let pos = null;
+    const msg = () => {
+      const d = new Date(); const tm = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const pl = $('splace').value.trim();
+      return `【${st.state}】\n${pl ? `いる場所：${pl}\n` : ''}${pos ? `現在地：${MAP.gsiMap(pos.latitude.toFixed(5), pos.longitude.toFixed(5), 17)}\n` : ''}（${tm}）`;
+    };
+    const upd = () => { const m = msg(); $('smsg').textContent = m; $('sline').href = 'https://line.me/R/share?text=' + encodeURIComponent(m); store.set('safeMsg', { state: st.state, place: $('splace').value }); };
+    view.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { st.state = b.dataset.st; view.querySelectorAll('[data-st]').forEach((x) => x.classList.toggle('on', x === b)); upd(); }));
+    $('splace').addEventListener('input', upd);
+    $('sloc').addEventListener('change', async () => { if ($('sloc').checked) { $('sres').textContent = '現在地を調べています…'; try { pos = await SH.locate(); $('sres').textContent = ''; } catch (e) { $('sres').textContent = e.message; $('sloc').checked = false; pos = null; } } else pos = null; upd(); });
+    $('sshare').addEventListener('click', async () => { const m = msg(); if (navigator.share) { try { await navigator.share({ text: m }); } catch (e) { /* 閉じた */ } } else { location.href = 'sms:?&body=' + encodeURIComponent(m); } });
+    $('scopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(msg()); $('sres').textContent = 'コピーしました。メッセージやメールに貼りつけて送ってください。'; } catch (e) { $('sres').textContent = 'コピーできませんでした。文面を長押しして選んでください。'; } });
+    upd();
+    $('whereb').addEventListener('click', async () => {
+      $('where').innerHTML = '<p class="small">現在地を調べています…</p>';
+      try {
+        const p = await SH.locate(); const la = p.latitude.toFixed(5), ln = p.longitude.toFixed(5);
+        const txt = `北緯 ${la}　東経 ${ln}（誤差 約${Math.round(p.accuracy)}m）`;
+        $('where').innerHTML = `<p style="font-size:22px;font-weight:700;margin:10px 0 4px;font-variant-numeric:tabular-nums">北緯 ${la}<br>東経 ${ln}</p><p class="small">誤差 約${Math.round(p.accuracy)}m</p>
+          <div class="links2"><a class="btn sm" href="${MAP.gsiMap(la, ln, 17)}" target="_blank" rel="noopener">${icon('map')}地図で見る</a><button class="btn sm plain" id="wshare">${icon('route')}送る</button></div>`;
+        $('wshare').addEventListener('click', async () => { const t = `いまここにいます\n${txt}\n${MAP.gsiMap(la, ln, 17)}`; if (navigator.share) { try { await navigator.share({ text: t }); } catch (e) { /* 閉じた */ } } else { try { await navigator.clipboard.writeText(t); $('wshare').textContent = 'コピーしました'; } catch (e) { /* なし */ } } });
+      } catch (e) { $('where').innerHTML = `<p class="small">${esc(e.message)}</p>`; }
+    });
   }
   let tick = null;
   function timer() {
     const start = store.get('quakeStart', null);
-    return `${back('#/tools', 'ツール')}${head('timer', 'c-blue', '地震からの経過時間', '')}
+    return `${back('#/tools', 'いざという時の道具')}${head('timer', 'c-blue', '地震からの経過時間', '')}
     <p class="lead">揺れ始めたら押すと、何分たったかがわかります。津波は、早いところでは地震から数分で来ると想定されています。</p>
     <div class="clock" id="clock">${start ? '' : '--:--'}</div>
     <button class="btn red" id="t-start">${start ? 'いまからはかり直す' : '揺れ始めた（スタート）'}</button>
@@ -452,6 +505,7 @@
     if (r === 'learn') bindLearn(h[1]);
     if (r === 'family') bindFamily();
     if (r === 'import') { const b = document.getElementById('imp'); if (b) b.addEventListener('click', () => { FAMILY.set(FAMILY.decode(h[1])); location.hash = '#/family'; }); }
+    if (r === 'tools') bindTools();
     const bl = document.getElementById('btn-light'); if (bl) bl.addEventListener('click', lightOn);
     const bw = document.getElementById('btn-whistle'); if (bw) bw.addEventListener('click', whistle);
     const ts = document.getElementById('t-start'); if (ts) ts.addEventListener('click', () => { store.set('quakeStart', Date.now()); render(); });
@@ -473,7 +527,7 @@
   let ac = null, osc = null;
   function whistle() {
     const lab = document.getElementById('wl');
-    if (osc) { osc.stop(); osc = null; if (lab) lab.textContent = '呼び笛'; return; }
+    if (osc) { osc.stop(); osc = null; if (lab) lab.textContent = '助けを呼ぶ音を鳴らす'; return; }
     ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
     osc = ac.createOscillator(); const g = ac.createGain(); osc.type = 'square'; osc.frequency.value = 3000;
     const t0 = ac.currentTime; g.gain.setValueAtTime(0, t0);
