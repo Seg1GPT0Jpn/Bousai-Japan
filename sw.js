@@ -1,8 +1,9 @@
 // オフラインでも使えるようにするための Service Worker。
+// 気象庁・地図・P2P地震情報など他のサイトへの通信は保存しない（いつも最新を取りにいく）。
 // 文字（フォント）は、表示に使った分だけ自動で保存される。アプリのファイルは先に保存し、ネットにつながるときは新しい版を取りにいく（つながらなければ保存した版）。
 // 都道府県の避難場所データは、利用者が「保存する」を押したときだけ別のキャッシュ（bousai-shelters-v1）に入る。
-const CACHE = 'bousai-v3';
-const FILES = ['./', 'index.html', 'css/fonts.css', 'css/app.css', 'fonts/biz-udpgothic/hES36X5pHAIBjmS84VL0Bue83nBkUWsdImkzMGXUb1G8eoOcUtmCbUaX.119.woff2', 'js/store.js', 'js/icons.js', 'js/content.js', 'js/shelters.js', 'js/family.js', 'js/app.js',
+const CACHE = 'bousai-v4';
+const FILES = ['./', 'index.html', 'css/fonts.css', 'css/app.css', 'fonts/biz-udpgothic/hES36X5pHAIBjmS84VL0Bue83nBkUWsdImkzMGXUb1G8eoOcUtmCbUaX.119.woff2', 'js/store.js', 'js/icons.js', 'js/content.js', 'js/shelters.js', 'js/family.js', 'js/map.js', 'js/live.js', 'js/app.js', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css',
   'vendor/qrcode.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'data/shelters/index.json'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => Promise.all(FILES.map((f) => c.add(new Request(f, { cache: 'reload' })).catch(() => {})))).then(() => self.skipWaiting()));

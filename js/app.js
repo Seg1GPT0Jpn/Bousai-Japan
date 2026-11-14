@@ -31,6 +31,8 @@
     <a class="em navy" href="#/after">${icon('after')}<div><b>揺れがおさまった</b><small>次にやること</small></div>${icon('chevron', 'go')}</a>
     <a class="em blue" href="#/tsunami">${icon('wave')}<div><b>津波のおそれ</b><small>より高いところへ</small></div>${icon('chevron', 'go')}</a>
     </section>
+    <div class="sec">いまの状況<a href="#/info">くわしく${icon('chevron')}</a></div>
+    <div id="live">${liveSkeleton()}</div>
     <div class="sec">避難場所</div>
     <div class="box accent"><h3>${icon('pin')}近くの避難場所を探す</h3>
       <p>${saved.length ? '保存したデータで、電波がなくても探せます。' : '都道府県のデータを先に保存しておくと、電波がなくても探せます。'}</p>
@@ -117,9 +119,9 @@
   function resCard(x, hz) {
     const r = x.r;
     const dir = x.d != null ? `<div class="dir"><span class="arr" style="transform:rotate(${Math.round(x.b)}deg)">${icon('arrow')}</span><b>${SH.fmtDist(x.d)}</b><small>${SH.dirName(x.b)}</small></div>` : '';
-    return `<div class="res">${dir}<div><h3>${esc(r[0])}</h3><p>${esc(r[1])}</p>
+    return `<div class="res">${dir}<div><h3>${x.i != null ? `${x.i + 1}. ` : ''}${esc(r[0])}</h3><p>${esc(r[1])}</p>
       <div class="hz">${HAZARDS.map((h, i) => (r[4] & (1 << i)) ? `<span class="${h.k === hz ? 'on' : ''}">${esc(h.s || h.n)}</span>` : '').join('')}</div>
-      <a href="https://maps.gsi.go.jp/#17/${r[2]}/${r[3]}/" target="_blank" rel="noopener">${icon('map')}地図で見る（通信が必要）</a></div></div>`;
+      <div class="links2"><a href="${MAP.gmapsWalk(r[2], r[3])}" target="_blank" rel="noopener">${icon('route')}Googleマップで歩くルート</a><a href="${MAP.gsiMap(r[2], r[3])}" target="_blank" rel="noopener">${icon('map')}地理院地図</a></div></div></div>`;
   }
   async function bindFind() {
     const out = document.getElementById('out');
@@ -130,7 +132,17 @@
       const list = await SH.nearest(lastPos.latitude, lastPos.longitude, hzNow(), 10);
       out.innerHTML = `<div class="sec">「${esc(hzName(hzNow()))}」に対応する近い避難場所</div>
         <p class="small" style="margin:-4px 0 8px">矢印は北を上にした方角です（位置の誤差：約${Math.round(lastPos.accuracy)}m）</p>
-        ${list.length ? `<div class="list">${list.map((x) => resCard(x, hzNow())).join('')}</div>` : '<div class="note">保存したデータに、この災害に対応する避難場所が見つかりませんでした。別の都道府県のデータが必要かもしれません。</div>'}`;
+        ${list.length && MAP.ok() ? '<div id="fmap" class="map" role="img" aria-label="現在地と近くの避難場所の地図"></div>' : ''}
+        ${list.length ? `<div class="list">${list.map((x, i) => resCard({ ...x, i }, hzNow())).join('')}</div>` : '<div class="note">保存したデータに、この災害に対応する避難場所が見つかりませんでした。別の都道府県のデータが必要かもしれません。</div>'}
+        <div class="note">${icon('route')}<span>「Googleマップで歩くルート」は、Googleマップが道順を出します。ルートは浸水・がけ・通行止めなどの危険を考えていません。周りの状況を自分の目で確かめて、危ない道は避けてください。開くと、目的地と現在地がGoogleに送られます。</span></div>`;
+      const el = document.getElementById('fmap');
+      if (el) {
+        const m = MAP.make(el, lastPos.latitude, lastPos.longitude, 15);
+        L.marker([lastPos.latitude, lastPos.longitude], { icon: MAP.dot('#0017C1', '') }).addTo(m).bindPopup('現在地（およそ）');
+        const pts = [[lastPos.latitude, lastPos.longitude]];
+        list.forEach((x, i) => { const r = x.r; pts.push([r[2], r[3]]); L.marker([r[2], r[3]], { icon: MAP.dot('#197A4B', i + 1) }).addTo(m).bindPopup(`<b>${esc(r[0])}</b><br>${SH.fmtDist(x.d)}（直線）<br><a href="${MAP.gmapsWalk(r[2], r[3])}" target="_blank" rel="noopener">Googleマップで歩くルート</a>`); });
+        m.fitBounds(pts, { padding: [24, 24], maxZoom: 16 });
+      }
     };
     if (go) go.addEventListener('click', async () => {
       go.disabled = true; out.innerHTML = '<div class="note">現在地を調べています…（屋外や窓の近くのほうが早くわかります）</div>';
@@ -152,6 +164,118 @@
     view.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => { if (confirm('この都道府県のデータを端末から削除しますか？')) { await SH.remove(b.dataset.del); render(); } }));
     if (lastPos) await show();
   }
+
+  // ---------- いまの状況（気象庁） ----------
+  const SRC_JMA = `<p class="src">出典：<a href="https://www.jma.go.jp/bosai/" target="_blank" rel="noopener">気象庁ホームページ</a>のデータをもとに Bousai Japan が加工して表示。気象庁が発表した内容を表示しているもので、このアプリが警報を出すものではありません。通信の状況により最新でない場合があるので、発表時刻を確かめ、気象庁や自治体の情報も確認してください。</p>`;
+  function liveSkeleton() {
+    const a = LIVE.area();
+    if (!a) return `<a class="live" href="#/info" style="display:block;text-decoration:none"><div class="lh">${icon('bell')}<b>地域を設定すると、警報・注意報がここに出ます</b>${icon('chevron')}</div></a>`;
+    return `<div class="live"><div class="lh">${icon('pin')}<b>${esc(a.c20Name || a.officeName)}</b><small id="lt">読みこみ中…</small></div>
+      <a class="lr" href="#/info">${''}<span class="lab">警報・注意報</span><span class="val" id="lw">…</span>${icon('chevron')}</a>
+      <a class="lr" href="#/info"><span class="lab">津波</span><span class="val" id="lts">…</span>${icon('chevron')}</a>
+      <a class="lr" href="#/info"><span class="lab">最新の地震</span><span class="val" id="lq">…</span>${icon('chevron')}</a>
+      <div class="lr"><span class="lab">緊急地震速報</span><span class="val" id="le"></span></div></div>`;
+  }
+  const wChips = (list) => list.length ? list.map((w) => `<span class="lv lv${w.level}">${esc(w.name)}</span>`).join('') : '<span>発表されている警報・注意報はありません</span>';
+  const intBadge = (mx) => { const c = LIVE.INT[mx]; return c ? `<span class="si" style="background:${c[0]};color:${c[1]}" aria-label="最大震度${c[2]}">${c[2]}</span>` : '<span class="si" aria-label="震度なし">－</span>'; };
+  const eewState = () => LIVE.wsState === 'on' ? '<span class="dot on"></span>受信待機中（このアプリを開いている間だけ）' : '<span class="dot"></span>接続していません（通信を確認）';
+  async function fillLive() {
+    const a = LIVE.area(); const $ = (id) => document.getElementById(id);
+    if (!a || !$('lw')) return;
+    $('le').innerHTML = eewState();
+    if (!navigator.onLine) { $('lt').textContent = 'オフライン'; ['lw', 'lts', 'lq'].forEach((k) => { $(k).textContent = '通信がないため表示できません'; }); return; }
+    try { const w = await LIVE.warnings(a); if ($('lw')) { $('lw').innerHTML = wChips(w.list); $('lt').textContent = w.latest ? LIVE.fmtTime(w.latest) + ' 発表' : ''; } } catch (e) { if ($('lw')) $('lw').textContent = '取得できませんでした'; }
+    try { const t = await LIVE.tsunami(); if ($('lts')) $('lts').innerHTML = t.level ? `<span class="lv lv${t.level === 3 ? 50 : t.level === 2 ? 30 : 20}">${['', '津波注意報', '津波警報', '大津波警報'][t.level]}</span>` : (t.forecast ? '津波予報（若干の海面変動）' : '発表されている津波警報・注意報はありません'); } catch (e) { if ($('lts')) $('lts').textContent = '取得できませんでした'; }
+    try { const q = (await LIVE.quakes(1))[0]; if ($('lq') && q) $('lq').innerHTML = `${intBadge(q.maxi)}<span>${esc(q.anm || '（震源調査中）')}${q.mag ? ` M${esc(q.mag)}` : ''}<br><small style="color:var(--muted)">${LIVE.fmtTime(q.at)}</small></span>`; } catch (e) { if ($('lq')) $('lq').textContent = '取得できませんでした'; }
+  }
+  function info() {
+    const a = LIVE.area();
+    const opts = PREFS.map((p, i) => `<option value="${i}"${a && a.pi === i ? ' selected' : ''}>${p}</option>`).join('');
+    return `${head('bell', 'c-blue', '災害の情報', '気象庁の発表を表示します')}
+    <div class="box"><h3>${icon('pin')}地域</h3>
+      <label class="small" for="ipref">都道府県</label><select id="ipref"><option value="">選んでください</option>${opts}</select>
+      <div id="ioff" style="margin-top:8px"></div><div id="ic20" style="margin-top:8px"></div>
+      <p class="small" style="margin:8px 0 0">市区町村まで選ぶと、その地域の警報・注意報だけを表示します。地域はこの端末にだけ保存します。</p></div>
+    <div id="eewbox"></div>
+    <div id="tsubox"></div>
+    <div class="sec">警報・注意報${a ? `<a href="${LIVE.links.warning(a.office)}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a>` : ''}</div>
+    <div class="box" id="wbox">${a ? '読みこみ中…' : '地域を選ぶと表示します。'}</div>
+    <div class="sec">地震情報<a href="${LIVE.links.quake}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a></div>
+    <div id="qmapw"></div><div class="list" id="qbox"><div class="qrow">読みこみ中…</div></div>
+    <div class="sec">火山（噴火警報が出ている火山）<a href="${LIVE.links.volcano}" target="_blank" rel="noopener">気象庁で見る${icon('chevron')}</a></div>
+    <div class="list" id="vbox"><div class="qrow">読みこみ中…</div></div>
+    <div class="sec">気象庁などのページ</div>
+    <div class="list">
+      ${[['キキクル（大雨による危険度分布）', 'map', LIVE.links.risk], ['雨雲の動き', 'wave', LIVE.links.rain], ['津波警報・注意報', 'wave', LIVE.links.tsunami], ['時系列で見る警報・注意報', 'timer', LIVE.links.timeline], ['強震モニタ（防災科学技術研究所・リアルタイムの揺れ）', 'quake', LIVE.links.kmoni], ['ハザードマップポータルサイト', 'map', 'https://disaportal.gsi.go.jp/']].map(([t, ic, u]) => `<a class="row" href="${u}" target="_blank" rel="noopener">${icon(ic)}<span class="t"><b style="font-size:16px">${t}</b></span><span class="end">${icon('chevron')}</span></a>`).join('')}
+    </div>
+    ${SRC_JMA}
+    <p class="src">緊急地震速報：<a href="https://www.p2pquake.net/" target="_blank" rel="noopener">P2P地震情報</a> のAPIで受け取った、気象庁の緊急地震速報（警報）の内容をそのまま表示します。配信は無保証で、届かない・遅れることがあります。このアプリを開いている間しか受け取れないので、スマホ本体の緊急速報（エリアメール等）を必ずオンにしてください。</p>`;
+  }
+  async function bindInfo() {
+    const $ = (id) => document.getElementById(id); let a = LIVE.area();
+    const sel = $('ipref');
+    const showOff = (pi) => {
+      const offs = LIVE.officesOf(pi);
+      $('ioff').innerHTML = offs.length > 1 ? `<label class="small" for="ioffs">地方</label><select id="ioffs">${offs.map(([c, n]) => `<option value="${c}"${a && a.office === c ? ' selected' : ''}>${n}</option>`).join('')}</select>` : '';
+      const pick = () => { const c = offs.length > 1 ? $('ioffs').value : offs[0][0]; const n = offs.find((o) => o[0] === c)[1]; showC20(pi, c, n); };
+      if ($('ioffs')) $('ioffs').addEventListener('change', () => { a = { pi, office: $('ioffs').value, officeName: offs.find((o) => o[0] === $('ioffs').value)[1] }; store.set('area', a); pick(); load(); });
+      pick();
+    };
+    const showC20 = async (pi, office, officeName) => {
+      $('ic20').innerHTML = '<p class="small">市区町村を読みこみ中…</p>';
+      try {
+        const ms = await LIVE.municipalities(office);
+        $('ic20').innerHTML = `<label class="small" for="ic20s">市区町村（任意）</label><select id="ic20s"><option value="">${esc(officeName)}全体</option>${ms.map(([c, n]) => `<option value="${c}"${a && a.c20 === c ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+        $('ic20s').addEventListener('change', () => { const v = $('ic20s').value; a = { pi, office, officeName, c20: v || null, c20Name: v ? ms.find((m) => m[0] === v)[1] : null }; store.set('area', a); load(); });
+      } catch (e) { $('ic20').innerHTML = '<p class="small">市区町村の一覧を読みこめませんでした（通信を確認してください）。</p>'; }
+    };
+    sel.addEventListener('change', () => { if (sel.value === '') return; const pi = +sel.value; const o = LIVE.officesOf(pi)[0]; a = { pi, office: o[0], officeName: o[1] }; store.set('area', a); showOff(pi); load(); });
+    if (a) showOff(a.pi);
+    const load = async () => {
+      if (!navigator.onLine) { ['wbox', 'qbox', 'vbox'].forEach((k) => { $(k).innerHTML = '<div class="qrow">通信がないため表示できません</div>'; }); return; }
+      // 緊急地震速報の状態
+      $('eewbox').innerHTML = `<div class="note">${icon('alert')}<span>緊急地震速報：${eewState()}</span></div>`;
+      // 津波
+      LIVE.tsunami().then((t) => { $('tsubox').innerHTML = t.level ? `<div class="tsu l${t.level}"><h3>${['', '津波注意報', '津波警報', '大津波警報'][t.level]}が発表されています</h3><p>${esc(t.areas.map((x) => x.name).join('、'))}</p><p class="small">${LIVE.fmtTime(t.at)} 発表　${esc(t.anm || '')}</p><a class="btn red" href="#/tsunami">津波から逃げる${icon('chevron')}</a></div>` : ''; }).catch(() => {});
+      // 警報
+      if (a) LIVE.warnings(a).then((w) => { $('wbox').innerHTML = `<p style="margin:0 0 8px"><b>${esc(a.c20Name || a.officeName)}</b>　<span class="small">${w.latest ? LIVE.fmtTime(w.latest) + ' 発表' : ''}</span></p><div class="val" style="display:flex;flex-wrap:wrap;gap:6px">${wChips(w.list)}</div>${w.headline ? `<p class="small" style="margin:10px 0 0">${esc(w.headline)}</p>` : ''}`; }).catch((e) => { $('wbox').textContent = '取得できませんでした。' + e.message; });
+      // 地震
+      LIVE.quakes(10).then((qs) => {
+        $('qbox').innerHTML = qs.map((q) => `<div class="qrow">${intBadge(q.maxi)}<span class="t"><b>${esc(q.anm || '（震源調査中）')}${q.mag ? `　M${esc(q.mag)}` : ''}</b><small>${LIVE.fmtTime(q.at)}${q.depth != null ? `　深さ約${Math.round(q.depth)}km` : ''}　${esc(q.ttl)}</small></span></div>`).join('') || '<div class="qrow">情報がありません</div>';
+        if (MAP.ok() && qs.some((q) => q.lat != null)) {
+          $('qmapw').innerHTML = '<div id="qmap" class="map" style="height:260px" role="img" aria-label="最近の地震の震央の地図"></div>';
+          const m = MAP.make($('qmap'), 36.5, 137.5, 4); const pts = [];
+          qs.filter((q) => q.lat != null).forEach((q) => { const c = LIVE.INT[q.maxi] || ['#777', '#fff', '－']; pts.push([q.lat, q.lng]); L.marker([q.lat, q.lng], { icon: L.divIcon({ className: 'mk', html: `<span style="background:${c[0]};color:${c[1]};border-color:#333">${c[2]}</span>`, iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(m).bindPopup(`<b>${esc(q.anm)}</b> M${esc(q.mag)}<br>${LIVE.fmtTime(q.at)}<br>最大震度 ${c[2]}`); });
+          if (pts.length > 1) m.fitBounds(pts, { padding: [20, 20], maxZoom: 7 });
+        }
+      }).catch(() => { $('qbox').innerHTML = '<div class="qrow">取得できませんでした</div>'; });
+      // 火山
+      LIVE.volcanoes().then((vs) => { $('vbox').innerHTML = vs.map((v) => `<a class="row" href="https://www.jma.go.jp/bosai/volcano/#type=warning&event_id=${esc(v.id)}" target="_blank" rel="noopener">${icon('volcano')}<span class="t"><b>${esc(v.name)}</b><small>${esc(v.label)}　${LIVE.fmtTime(v.at)}</small></span><span class="end">${icon('chevron')}</span></a>`).join('') || '<div class="qrow">噴火警報が出ている火山はありません</div>'; }).catch(() => { $('vbox').innerHTML = '<div class="qrow">取得できませんでした</div>'; });
+    };
+    load();
+    clearInterval(tick); tick = setInterval(load, 60000);
+  }
+
+  // ---------- 緊急地震速報（全画面表示） ----------
+  function showEew(m) {
+    const e = m.earthquake || {}; const hy = e.hypocenter || {};
+    let box = document.getElementById('eew'); if (!box) { box = document.createElement('div'); box.id = 'eew'; box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-live', 'assertive'); document.body.appendChild(box); }
+    if (m.cancelled) { box.innerHTML = `<h2>緊急地震速報は取り消されました</h2><button id="eewx">閉じる</button>`; document.getElementById('eewx').onclick = () => box.remove(); return; }
+    const areas = (m.areas || []).map((x) => x.name).filter(Boolean);
+    box.innerHTML = `<h2>緊急地震速報（警報）</h2><p class="sm">気象庁の発表を中継しています</p>
+      <div class="big">強い揺れに警戒してください</div>
+      <p>${esc(hy.name || '')}で地震　${hy.magnitude > 0 ? 'M' + hy.magnitude : ''}</p>
+      ${areas.length ? `<p class="sm">強い揺れが予想される地域：</p><div class="areas">${esc(areas.slice(0, 30).join('、'))}</div>` : ''}
+      <a href="#/shake" id="eewgo">いますぐ身を守る</a><button id="eewx">閉じる</button>
+      <p class="sm">${LIVE.fmtTime(m.time)}　配信は無保証です。テレビ・ラジオ・スマホ本体の速報も確認してください。</p>`;
+    document.getElementById('eewx').onclick = () => box.remove();
+    document.getElementById('eewgo').onclick = () => box.remove();
+    beep();
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
+  }
+  function beep() { try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'square'; o.frequency.value = 1100; const t = ctx.currentTime; g.gain.setValueAtTime(0, t); for (let i = 0; i < 6; i++) { g.gain.setValueAtTime(0.25, t + i * 0.5); g.gain.setValueAtTime(0, t + i * 0.5 + 0.25); } o.connect(g).connect(ctx.destination); o.start(); o.stop(t + 3.2); } catch (e) { /* 音が出せない端末 */ } }
+  document.addEventListener('eewstate', () => { const el = document.getElementById('le'); if (el) el.innerHTML = eewState(); const eb = document.getElementById('eewbox'); if (eb) eb.innerHTML = `<div class="note">${icon('alert')}<span>緊急地震速報：${eewState()}</span></div>`; });
+  window.__showEew = showEew; // 表示の確認用
 
   // ---------- 学ぶ ----------
   function learn(i) {
@@ -266,13 +390,13 @@
     return `${back()}${head('info', 'c-blue', 'このアプリについて', 'ご利用上の注意')}
     <div class="box"><p>Bousai Japan は、防災の知識を身につけ、災害時に「次に何をするか」を判断するのを助ける、無料の防災Webアプリです。</p></div>
     <div class="box"><h3>${icon('alert')}ご利用上の注意</h3>
-      <p>このアプリは、気象庁や自治体などの災害情報を受け取ったり配信したりするものではありません。</p>
+      <p>「情報」画面では、気象庁が発表した警報・注意報・地震・津波・火山の情報と、緊急地震速報（警報）の内容をそのまま表示します。このアプリが独自に警報や予報を出すことはありません。通信の状況により遅れたり届かなかったりすることがあり、緊急地震速報はアプリを開いている間しか受け取れません。スマホ本体の緊急速報（エリアメール等）を必ずオンにしてください。</p>
       <p>防災情報や避難場所データは公式機関の資料をもとにしていますが、更新の時期などにより、実際の状況と異なる場合があります。避難場所が実際に開いているかどうかはわかりません。</p>
       <p>災害のときは、まわりの危険と、自治体・消防・警察・学校などの指示や最新の情報を最優先にしてください。</p>
       <p>表示される距離は直線距離で、安全な道順や所要時間を示すものではありません。GPSは屋内や地下で大きくずれることがあります。</p>
       <p>電波がなくても使えるのは、最後に保存した時点の情報です。チェック・家族メモ・保存した避難場所データはこの端末の中だけにあり、ブラウザのデータを消すと消えます。</p>
       <p>本アプリは行動を助けるための道具で、安全を保証するものではありません。日頃から地域のハザードマップや避難場所を確認し、家族や学校と避難方法を話し合っておきましょう。</p></div>
-    <div class="box"><h3>${icon('shield')}プライバシー</h3><p>現在地・家族メモ・チェックの内容は外部に送信しません。現在地は避難場所の距離の計算にだけ使い、保存しません。「地図で見る」や公式サイトへのリンクを開くと、その先のサイトに通信が発生します。</p></div>
+    <div class="box"><h3>${icon('shield')}プライバシー</h3><p>現在地・家族メモ・チェックの内容は外部に送信しません。現在地は避難場所の距離の計算と地図の表示にだけ使い、保存しません。「情報」画面の地域はこの端末にだけ保存します。気象庁のデータ、P2P地震情報（緊急地震速報）、地図の画像（地理院タイル）を取りにいく通信が発生しますが、現在地や家族メモは送りません。「Googleマップで歩くルート」を開くと、目的地と（Googleマップが使う）現在地がGoogleに送られます。</p></div>
     <div class="box"><h3>${icon('book')}出典</h3>${Object.values(SRC).map((s) => `<p style="font-size:14px"><a href="${s.url}" target="_blank" rel="noopener">${esc(s.name)}</a></p>`).join('')}
       <p style="font-size:14px">避難場所データ：国土地理院「指定緊急避難場所・指定避難所データ」をもとに Bousai Japan が加工して作成（公共データ利用規約 第1.0版）。</p>
       <p style="font-size:14px">QRコード：QR Code Generator for JavaScript（Kazuhiko Arase, MIT License）。QRコードは株式会社デンソーウェーブの登録商標です。</p></div>
@@ -282,9 +406,9 @@
   }
 
   // ---------- ルーター ----------
-  const NAV = [['', 'home', 'ホーム'], ['find', 'pin', '避難場所'], ['learn', 'book', '学ぶ'], ['family', 'users', '家族']];
+  const NAV = [['', 'home', 'ホーム'], ['info', 'bell', '情報'], ['find', 'pin', '避難場所'], ['learn', 'book', '学ぶ'], ['family', 'users', '家族']];
   function nav(r) {
-    const tab = ['find'].includes(r) ? 'find' : ['learn'].includes(r) ? 'learn' : ['family', 'import'].includes(r) ? 'family' : '';
+    const tab = r === 'info' ? 'info' : ['find'].includes(r) ? 'find' : ['learn'].includes(r) ? 'learn' : ['family', 'import'].includes(r) ? 'family' : '';
     document.getElementById('nav').innerHTML = NAV.map(([h, ic, t]) => `<a href="#/${h}" class="${h === tab ? 'on' : ''}"${h === tab ? ' aria-current="page"' : ''}>${icon(ic)}${t}</a>`).join('');
   }
   function badge() {
@@ -304,6 +428,7 @@
       case 'tsunami': html = tsunami(); break;
       case 'rinji': html = rinji(); break;
       case 'find': html = await find(h[1]); break;
+      case 'info': html = info(); break;
       case 'learn': html = learn(h[1]); break;
       case 'check': html = check(); break;
       case 'family': html = family(); break;
@@ -321,6 +446,8 @@
   function bind(r, h) {
     view.querySelectorAll('[data-ck]').forEach((el) => el.addEventListener('change', () => { const st = store.get('check', {}); st[el.dataset.ck] = el.checked; store.set('check', st); const p = checkProgress(); const bar = view.querySelector('.bar i'); if (bar) bar.style.width = p.p + '%'; const b = document.getElementById('ckn'); if (b) { b.textContent = `${p.d} / ${p.n} 完了`; b.nextElementSibling.textContent = p.p + '%'; } }));
     if (r === '') view.querySelectorAll('[data-hz]').forEach((b) => b.addEventListener('click', () => { store.set('hz', b.dataset.hz); view.querySelectorAll('[data-hz]').forEach((x) => x.classList.toggle('on', x === b)); }));
+    if (r === 'info') bindInfo();
+    if (r === '') { fillLive(); tick = setInterval(fillLive, 60000); }
     if (r === 'find') { bindFind().then(() => { if (h[1] === 'go' || HAZARDS.some((x) => x.k === h[1])) { const g = document.getElementById('go'); if (g && !lastPos) g.click(); } }); }
     if (r === 'learn') bindLearn(h[1]);
     if (r === 'family') bindFamily();
@@ -359,6 +486,8 @@
   window.addEventListener('online', upd); window.addEventListener('offline', upd); upd();
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   document.documentElement.dataset.size = store.get('size', 'm');
+  LIVE.startEew(showEew);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') LIVE.startEew(showEew); });
   window.addEventListener('hashchange', render);
   render();
 })();
