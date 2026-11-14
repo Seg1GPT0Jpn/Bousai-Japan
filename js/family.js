@@ -36,8 +36,8 @@ const FAMILY = {
     const F = '"Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif';
     g.fillStyle = '#0F172A'; g.fillRect(0, 0, 1080, 1920);
     g.fillStyle = '#DC2626'; g.fillRect(0, 0, 1080, 300);
-    g.fillStyle = '#fff'; g.font = `900 72px ${F}`; g.fillText('家族の防災カード', 80, 170);
-    g.font = `700 34px ${F}`; g.fillText('いざという時はこれを見て行動する', 80, 240);
+    g.fillStyle = '#fff'; g.font = `900 72px ${F}`; g.fillText(I18N.w('家族の防災カード'), 80, 170);
+    g.font = `700 34px ${F}`; g.fillText(I18N.w('いざという時はこれを見て行動する'), 80, 240);
     let y = 400;
     const wrap = (text, x, maxW, lh) => {
       let line = ''; const out = [];
@@ -48,10 +48,10 @@ const FAMILY = {
     FAMILY_FIELDS.forEach(([k, label]) => {
       if (!f[k]) return;
       if (y > 1700) return;
-      g.fillStyle = '#93A4BD'; g.font = `700 32px ${F}`; g.fillText(label, 80, y); y += 58;
+      g.fillStyle = '#93A4BD'; g.font = `700 32px ${F}`; g.fillText(I18N.w(label), 80, y); y += 58;
       g.fillStyle = '#fff'; g.font = `900 46px ${F}`; wrap(f[k], 80, 920, 62); y += 30;
     });
-    g.fillStyle = '#93A4BD'; g.font = `700 28px ${F}`; g.fillText('災害用伝言ダイヤル 171（録音 171→1 ／ 再生 171→2）', 80, 1820);
+    g.fillStyle = '#93A4BD'; g.font = `700 28px ${F}`; g.fillText(I18N.w('災害用伝言ダイヤル 171（録音 171→1 ／ 再生 171→2）'), 80, 1820);
     return c;
   },
 };

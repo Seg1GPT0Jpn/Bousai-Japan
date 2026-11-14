@@ -47,6 +47,9 @@
       ${row('#/weather', 'wave', '天気と雨雲レーダー', '近くの気温・湿度・雨、天気予報')}
       ${row('#/rain', 'flood', '大雨・台風のとき', '警戒レベルと、とるべき行動')}
       ${row('#/rinji', 'megaphone', '南海トラフ地震臨時情報', '発表されたら何をするか')}
+      ${row('#/g/kitaku', 'train', '帰れなくなったとき', '外出先で大きな地震にあったら')}
+      ${row('#/g/fire', 'fire', '地震のあとの火事', 'ブレーカー・電気の火事を防ぐ')}
+      ${row('#/g/health', 'users', '避難所での健康', 'エコノミークラス症候群・熱中症・トイレ')}
       ${row('#/tools', 'phone', 'いざという時の道具', '家族に無事を知らせる・居場所を伝える・助けを呼ぶ')}
     </div>
     ${NOTICE}
@@ -89,6 +92,16 @@
     <div class="alert red">${icon('alert')}<span>${esc(RINJI.note)}</span></div>
     <a class="btn" href="#/check">${icon('check')}1週間のそなえをチェック</a>
     ${srcHtml(RINJI.src)}`;
+  }
+
+  function guide(k) {
+    const g = GUIDES[k]; if (!g) return home();
+    return `${back()}${head(g.icon, g.color, g.title, g.sub)}
+    <p class="lead">${esc(g.lead)}</p>
+    ${g.alert ? `<div class="alert">${icon('alert')}<span>${esc(g.alert)}</span></div>` : ''}
+    ${g.parts.map((p) => `<div class="sec">${esc(p.h)}</div>${steps(p.items)}`).join('')}
+    ${g.after || ''}
+    ${srcHtml(g.src)}`;
   }
 
   function rain() {
@@ -247,7 +260,7 @@
       dl.disabled = true; msg.textContent = 'ダウンロード中…';
       try { const j = await SH.download(sel.value); msg.textContent = `${j.pref}の避難場所 ${j.rows.length.toLocaleString()}か所を保存しました。`; setTimeout(render, 900); } catch (e) { msg.textContent = e.message; dl.disabled = false; }
     });
-    view.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => { if (confirm('この都道府県のデータを端末から削除しますか？')) { await SH.remove(b.dataset.del); render(); } }));
+    view.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => { if (confirm(I18N.tr('この都道府県のデータを端末から削除しますか？'))) { await SH.remove(b.dataset.del); render(); } }));
     if (lastPos) await show();
   }
 
@@ -389,6 +402,9 @@
       ${row('#/tsunami', 'wave', '津波から逃げる', 'より高いところへ')}
       ${row('#/rain', 'flood', '大雨・台風のとき', '警戒レベル')}
       ${row('#/rinji', 'megaphone', '南海トラフ地震臨時情報', '発表されたら何をするか')}
+      ${row('#/g/kitaku', 'train', '帰れなくなったとき', '外出先で大きな地震にあったら')}
+      ${row('#/g/fire', 'fire', '地震のあとの火事', 'ブレーカー・電気の火事を防ぐ')}
+      ${row('#/g/health', 'users', '避難所での健康', 'エコノミークラス症候群・熱中症・トイレ')}
       ${row('#/171', 'phone', '災害用伝言ダイヤル171', '録音と再生のしかた')}
     </div>`;
   }
@@ -495,7 +511,8 @@
     const msg = () => {
       const d = new Date(); const tm = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       const pl = $('splace').value.trim();
-      return `【${st.state}】\n${pl ? `いる場所：${pl}\n` : ''}${pos ? `現在地：${MAP.gsiMap(pos.latitude.toFixed(5), pos.longitude.toFixed(5), 17)}\n` : ''}（${tm}）`;
+      const T = (x) => I18N.w(x);
+      return `【${T(st.state)}】\n${pl ? `${T('いる場所：')}${pl}\n` : ''}${pos ? `${T('現在地：')}${MAP.gsiMap(pos.latitude.toFixed(5), pos.longitude.toFixed(5), 17)}\n` : ''}（${tm}）`;
     };
     const upd = () => { const m = msg(); $('smsg').textContent = m; $('sline').href = 'https://line.me/R/share?text=' + encodeURIComponent(m); store.set('safeMsg', { state: st.state, place: $('splace').value }); };
     view.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => { st.state = b.dataset.st; view.querySelectorAll('[data-st]').forEach((x) => x.classList.toggle('on', x === b)); upd(); }));
@@ -511,7 +528,7 @@
         const txt = `北緯 ${la}　東経 ${ln}（誤差 約${Math.round(p.accuracy)}m）`;
         $('where').innerHTML = `<p style="font-size:22px;font-weight:700;margin:10px 0 4px;font-variant-numeric:tabular-nums">北緯 ${la}<br>東経 ${ln}</p><p class="small">誤差 約${Math.round(p.accuracy)}m</p>
           <div class="links2"><a class="btn sm" href="${MAP.gsiMap(la, ln, 17)}" target="_blank" rel="noopener">${icon('map')}地図で見る</a><a class="btn sm plain" href="${MAP.hazPortal(la, ln)}" target="_blank" rel="noopener">${icon('flood')}ハザードマップ</a><button class="btn sm plain" id="wshare">${icon('route')}送る</button></div>`;
-        $('wshare').addEventListener('click', async () => { const t = `いまここにいます\n${txt}\n${MAP.gsiMap(la, ln, 17)}`; if (navigator.share) { try { await navigator.share({ text: t }); } catch (e) { /* 閉じた */ } } else { try { await navigator.clipboard.writeText(t); $('wshare').textContent = 'コピーしました'; } catch (e) { /* なし */ } } });
+        $('wshare').addEventListener('click', async () => { const t = `${I18N.w('いまここにいます')}\n${I18N.tr(txt)}\n${MAP.gsiMap(la, ln, 17)}`; if (navigator.share) { try { await navigator.share({ text: t }); } catch (e) { /* 閉じた */ } } else { try { await navigator.clipboard.writeText(t); $('wshare').textContent = 'コピーしました'; } catch (e) { /* なし */ } } });
       } catch (e) { $('where').innerHTML = `<p class="small">${esc(e.message)}</p>`; }
     });
   }
@@ -541,6 +558,7 @@
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; });
   function start() {
     const saved = Object.keys(SH.saved()); const a = LIVE.area(); const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const AND = '<li><b>Android（Chrome）</b>：右上の︙メニュー →「インストールしてショートカットを作成」または「ホーム画面に追加」</li>';
     const done = (ok) => ok ? `<span class="lv" style="background:var(--green);color:#fff">完了</span>` : `<span class="lv" style="border:1px solid var(--line)">まだ</span>`;
     return `${head('check', 'c-green', 'はじめての準備', '電波があるうちに、1回だけやっておくこと')}
     <div class="box"><h3>${icon('info')}言語・Language</h3><div class="sizes">${[['ja', '日本語'], ['ez', 'やさしい にほんご'], ['en', 'English']].map(([k, t]) => `<button data-lang="${k}" class="${I18N.lang === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
@@ -548,12 +566,12 @@
     <div class="box"><h3>${icon('bell')}2. 地域を設定する ${done(a)}</h3><p>自分の地域の警報・注意報や天気予報が、ホームに出るようになります。</p><a class="btn ${a ? 'plain' : ''}" href="#/info" style="margin-bottom:0">${a ? '地域を変える' : '地域を設定する'}</a></div>
     <div class="box"><h3>${icon('phone')}3. スマホ本体の「緊急速報」をオンにする ${done(store.get('eewChecked', false))}</h3>
       <p>緊急地震速報や津波警報は、スマホ本体の機能（緊急速報メール・エリアメール）で届きます。このアプリは、開いている間しか緊急地震速報を受け取れません。</p>
-      <ul class="dots" style="margin:0 0 8px;padding-left:1.2em"><li><b>iPhone</b>：設定 → 通知 → いちばん下の「緊急速報」がオンになっているか確認</li><li><b>Android</b>：設定アプリで「緊急速報」と検索し、オンになっているか確認（機種によってメニューの名前がちがいます）</li></ul>
+      <ul class="dots" style="margin:0 0 8px;padding-left:1.2em"><li><b>iPhone</b>：「設定」→「通知」→ いちばん下の「緊急速報」をオン</li><li><b>Android</b>：設定アプリの検索で「緊急速報メール」と調べ、「緊急速報メールを許可」をオン（機種やOSによってメニューの名前がちがいます）</li></ul><p class="small">対応したSIMを使っている場合に受け取れます。くわしくは、使っている携帯電話会社の案内を確認してください。</p>
       <button class="btn ${store.get('eewChecked', false) ? 'plain' : ''}" id="eewok" style="margin-bottom:0">確認した</button></div>
     <div class="box"><h3>${icon('home')}4. ホーム画面に追加する ${done(store.get('installed', false) || matchMedia('(display-mode: standalone)').matches)}</h3>
       <p>アプリのようにすぐ開けて、電波がなくても使いやすくなります。</p>
       ${deferredInstall ? `<button class="btn" id="inst">ホーム画面に追加する</button>` : ''}
-      <ul class="dots" style="margin:0 0 8px;padding-left:1.2em">${ios ? '' : '<li><b>Android（Chrome）</b>：右上の︙メニュー →「ホーム画面に追加」または「アプリをインストール」</li>'}<li><b>iPhone（Safari）</b>：下の共有ボタン（四角から矢印）→「ホーム画面に追加」</li>${ios ? '<li><b>Android（Chrome）</b>：右上の︙メニュー →「ホーム画面に追加」または「アプリをインストール」</li>' : ''}</ul>
+      <ul class="dots" style="margin:0 0 8px;padding-left:1.2em">${ios ? '' : AND}<li><b>iPhone（Safari）</b>：「共有」ボタン（「…」の中にある場合もあります）→ 下にスクロールして「ホーム画面に追加」→「追加」</li>${ios ? AND : ''}</ul>
       <button class="btn plain" id="instok" style="margin-bottom:0">追加した</button></div>
     <a class="btn" href="#/">ホームへ</a>`;
   }
@@ -627,6 +645,7 @@
       case 'find': html = await find(h[1]); break;
       case 'info': html = info(); break;
       case 'rain': html = rain(); break;
+      case 'g': html = guide(h[1]); break;
       case 'weather': html = weather(); break;
       case 'learn': html = learn(h[1]); break;
       case 'check': html = check(); break;
@@ -669,7 +688,7 @@
     }
     view.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => { store.set('size', b.dataset.size); document.documentElement.dataset.size = b.dataset.size; view.querySelectorAll('[data-size]').forEach((x) => x.classList.toggle('on', x === b)); }));
     const wipe = document.getElementById('wipe');
-    if (wipe) wipe.addEventListener('click', async () => { if (confirm('チェック・家族メモ・トレーニング・タイマー・保存した避難場所データを、この端末から消します。よろしいですか？')) { for (const c of Object.keys(SH.saved())) await SH.remove(c); ['check', 'family', 'quakeStart', 'quiz', 'hz'].forEach((k) => store.del(k)); location.hash = '#/'; } });
+    if (wipe) wipe.addEventListener('click', async () => { if (confirm(I18N.tr('チェック・家族メモ・トレーニング・タイマー・保存した避難場所データを、この端末から消します。よろしいですか？'))) { for (const c of Object.keys(SH.saved())) await SH.remove(c); ['check', 'family', 'quakeStart', 'quiz', 'hz'].forEach((k) => store.del(k)); location.hash = '#/'; } });
   }
 
   // ---------- ライト・呼び笛 ----------
