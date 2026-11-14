@@ -1,24 +1,26 @@
 // オフラインでも使えるようにするための Service Worker。
-// アプリのファイルは先に保存しておき、ネットにつながるときは新しい版を取りにいく（つながらなければ保存した版）。
-const CACHE = 'bousai-v1';
-const FILES = ['./', 'index.html', 'style.css', 'data.js', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
+// アプリのファイルは先に保存し、ネットにつながるときは新しい版を取りにいく（つながらなければ保存した版）。
+// 都道府県の避難場所データは、利用者が「保存する」を押したときだけ別のキャッシュ（bousai-shelters-v1）に入る。
+const CACHE = 'bousai-v2';
+const FILES = ['./', 'index.html', 'css/app.css', 'js/store.js', 'js/icons.js', 'js/content.js', 'js/shelters.js', 'js/family.js', 'js/app.js',
+  'vendor/qrcode.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'data/shelters/index.json'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => Promise.all(FILES.map((f) => c.add(new Request(f, { cache: 'reload' })).catch(() => {})))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('bousai-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => /^bousai-v\d+$/.test(k) && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  const isPrefData = /\/data\/shelters\/\d{2}\.json$/.test(url.pathname);
   e.respondWith((async () => {
-    const cache = await caches.open(CACHE);
     try {
       const res = await fetch(e.request);
-      if (res.ok) cache.put(e.request, res.clone());
+      if (res.ok && !isPrefData) (await caches.open(CACHE)).put(e.request, res.clone());
       return res;
     } catch (err) {
-      return (await cache.match(e.request, { ignoreSearch: true })) || (await cache.match('index.html')) || Response.error();
+      return (await caches.match(e.request, { ignoreSearch: true })) || (isPrefData ? Response.error() : (await caches.match('index.html')) || Response.error());
     }
   })());
 });
