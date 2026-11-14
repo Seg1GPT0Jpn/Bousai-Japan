@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Bousai Japan｜いざという時の防災アプリ</title>
+<meta name="description" content="地震・津波のとき「いま何をするか」がすぐわかる防災アプリ。オフラインでも使えます。">
+<meta name="theme-color" content="#b3261e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="防災">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a href="#/" class="brand" aria-label="ホームへ"><span class="logo">防</span><span>Bousai Japan</span></a>
+  <span class="net" id="net" hidden>オフライン</span>
+</header>
+<main id="view" tabindex="-1"><noscript>このアプリを使うには JavaScript を有効にしてください。</noscript></main>
+<div id="light" hidden><button id="light-off">ライトを消す</button></div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
