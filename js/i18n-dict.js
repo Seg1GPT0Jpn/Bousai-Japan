@@ -418,3 +418,12 @@ I18N_PATTERNS.push(
   [/^北緯 ([\d.]+)　東経 ([\d.]+)（誤差 約(\d+)m）$/, ['北緯 $1　東経 $2（ずれ やく $3m）', 'Lat $1, Lon $2 (accuracy ~$3 m)']],
   [/^北緯 ([\d.]+)$/, ['北緯 $1', 'Lat $1']], [/^東経 ([\d.]+)$/, ['東経 $1', 'Lon $1']],
 );
+Object.assign(I18N_DICT, {
+  '設定': ['せってい', 'Settings'], 'Settings': ['せってい', 'Settings'], '設定・Language': ['せってい・Language', 'Settings / Language'], 'そのほか': ['そのほか', 'More'],
+  'あとから右上の「設定」でも変えられます。': ['あとで 右上の「せってい」でも かえられます。', 'You can change this later from “Settings” at the top right.'],
+  '日本語以外の表示は、画面の説明を訳したものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。': ['日本語 いがいは、せつめいを やくした ものです。地名・しせつの なまえ・気象庁の じょうほうは 日本語の ままです。正しい ないようは 日本語と しりょうを みて ください。', 'Languages other than Japanese are translations of this app’s explanations. Place names, facility names and JMA data stay in Japanese. For the official wording, check the Japanese text and the sources.'],
+  '避難場所データの保存・削除': ['ひなん場所の データの ほぞん・けす', 'Save or delete shelter data'], '保存した都道府県を見る': ['ほぞんした 都道府県を みる', 'See saved prefectures'],
+  '地域の設定': ['地域の せってい', 'Area setting'], '警報・注意報・天気予報を出す地域': ['けいほう・てんきよほうを だす 地域', 'Area for warnings and forecasts'],
+  'ご利用上の注意・出典・問い合わせ': ['ちゅうい・しりょう・といあわせ', 'Notes, sources, contact'], 'ご意見・不具合の報告': ['いけん・こまったことの れんらく', 'Feedback & bug reports'], 'GitHub の問い合わせ欄（Issues）': ['GitHub の といあわせ（Issues）', 'GitHub Issues'],
+  '言語（Language）・文字の大きさ・はじめての準備・プライバシー': ['ことば（Language）・もじの 大きさ・はじめての じゅんび・プライバシー', 'Language, text size, first-time setup, privacy'],
+});

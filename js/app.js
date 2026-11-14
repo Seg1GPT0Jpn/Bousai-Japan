@@ -10,6 +10,7 @@
   const KICK = { 'c-red': '災害時', 'c-orange': '災害時', 'c-blue': '災害時', 'c-amber': '知っておくこと', 'c-green': 'ふだんのそなえ', 'c-violet': 'ふだんのそなえ' };
   const row = (href, ic, title, sub, end = '') => `<a class="row" href="${href}">${icon(ic)}<span class="t"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span><span class="end">${end}${icon('chevron')}</span></a>`;
   const steps = (items, big) => `<ol class="steps${big ? ' big' : ''}">${items.map((a) => `<li class="${a.strong ? 'key' : ''}"><b>${esc(a.t)}</b>${a.d ? `<p>${esc(a.d)}</p>` : ''}${a.link ? `<a href="${a.link}">くわしく${icon('chevron')}</a>` : ''}</li>`).join('')}</ol>`;
+  const langGrid = () => `<div class="langgrid" data-notr>${I18N_LIST.map(([k, t, sub]) => `<button data-lang="${k}" class="${I18N.lang === k ? 'on' : ''}" lang="${k === 'ez' ? 'ja' : k}"${I18N.lang === k ? ' aria-pressed="true"' : ''}>${t}<small>${sub}</small></button>`).join('')}</div>`;
   const NOTICE = `<div class="note">${icon('info')}<span>このアプリは地震・津波の情報を受け取りません。実際の災害では、まわりの危険と、自治体・消防・警察・学校の指示、テレビ・ラジオの情報を最優先にしてください。</span></div>`;
   const hzName = (k) => { const h = HAZARDS.find((x) => x.k === k); return h ? (h.s || h.n) : ''; };
 
@@ -53,7 +54,8 @@
       ${row('#/tools', 'phone', 'いざという時の道具', '家族に無事を知らせる・居場所を伝える・助けを呼ぶ')}
     </div>
     ${NOTICE}
-    <p class="foot"><a href="#/start">はじめての準備</a>　｜　<a href="#/lang">Language・言語</a>　｜　<a href="#/about">このアプリについて・文字の大きさ</a>　｜　<a href="#/privacy">プライバシーポリシー</a></p>`;
+    <a class="row" href="#/settings" style="border:1px solid var(--line);border-radius:8px;background:var(--surface);margin:16px 0 8px">${icon('gear')}<span class="t"><b>設定</b><small>言語（Language）・文字の大きさ・はじめての準備・プライバシー</small></span><span class="end">${icon('chevron')}</span></a>
+    <p class="foot"><a href="#/about">このアプリについて</a>　｜　<a href="#/privacy">プライバシーポリシー</a></p>`;
   }
 
   // ---------- 災害時 ----------
@@ -561,7 +563,7 @@
     const AND = '<li><b>Android（Chrome）</b>：右上の︙メニュー →「インストールしてショートカットを作成」または「ホーム画面に追加」</li>';
     const done = (ok) => ok ? `<span class="lv" style="background:var(--green);color:#fff">完了</span>` : `<span class="lv" style="border:1px solid var(--line)">まだ</span>`;
     return `${head('check', 'c-green', 'はじめての準備', '電波があるうちに、1回だけやっておくこと')}
-    <div class="box"><h3>${icon('info')}言語・Language</h3><div class="sizes">${[['ja', '日本語'], ['ez', 'やさしい にほんご'], ['en', 'English']].map(([k, t]) => `<button data-lang="${k}" class="${I18N.lang === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <div class="box"><h3>${icon('globe')}言語・Language</h3>${langGrid()}<p class="small" style="margin:0">あとから右上の「設定」でも変えられます。</p></div>
     <div class="box"><h3>${icon('download')}1. 避難場所のデータを保存する ${done(saved.length)}</h3><p>家や学校のある都道府県のデータを保存すると、電波がなくても近くの避難場所・避難所を探せます。</p><a class="btn ${saved.length ? 'plain' : ''}" href="#/find" style="margin-bottom:0">${saved.length ? '保存したデータを見る' : 'データを保存する'}</a></div>
     <div class="box"><h3>${icon('bell')}2. 地域を設定する ${done(a)}</h3><p>自分の地域の警報・注意報や天気予報が、ホームに出るようになります。</p><a class="btn ${a ? 'plain' : ''}" href="#/info" style="margin-bottom:0">${a ? '地域を変える' : '地域を設定する'}</a></div>
     <div class="box"><h3>${icon('phone')}3. スマホ本体の「緊急速報」をオンにする ${done(store.get('eewChecked', false))}</h3>
@@ -581,15 +583,26 @@
     const i = document.getElementById('instok'); if (i) i.addEventListener('click', () => { store.set('installed', true); render(); });
     const p = document.getElementById('inst'); if (p) p.addEventListener('click', async () => { deferredInstall.prompt(); const r = await deferredInstall.userChoice; if (r.outcome === 'accepted') store.set('installed', true); deferredInstall = null; render(); });
   }
-  function langPage() {
-    return `${back()}${head('info', 'c-blue', 'Language・言語', '')}
-    <div class="list">${[['ja', '日本語', 'Japanese'], ['ez', 'やさしい にほんご', 'Easy Japanese'], ['en', 'English', '英語']].map(([k, t, sub]) => `<button class="row" data-lang="${k}">${icon(I18N.lang === k ? 'check' : 'chevron')}<span class="t"><b>${t}</b><small>${sub}</small></span></button>`).join('')}</div>
-    <p class="small">やさしい日本語・英語は、画面の説明を言いかえたものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。</p>
-    <p class="small">Easy Japanese and English are translations of this app's explanations. Place names, facility names and Japan Meteorological Agency (JMA) data are shown in Japanese. For official wording, check the Japanese text and the sources.</p>`;
+  function settings() {
+    return `${head('gear', 'c-none', '設定', '')}
+    <div class="sec" style="margin-top:0" data-notr>言語・Language</div>
+    ${langGrid()}
+    <p class="small">日本語以外の表示は、画面の説明を訳したものです。地名・施設名・気象庁の情報は日本語のまま表示されます。正式な内容は日本語の表示と出典を確認してください。</p>
+    <div class="sec">文字の大きさ</div>
+    <div class="sizes">${[['m', '標準'], ['l', '大'], ['xl', '特大']].map(([k, t]) => `<button data-size="${k}" class="${(store.get('size', 'm')) === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="sec">そのほか</div>
+    <div class="list">
+      ${row('#/start', 'check', 'はじめての準備', 'データの保存・地域・緊急速報・ホーム画面')}
+      ${row('#/find', 'download', '避難場所データの保存・削除', '保存した都道府県を見る')}
+      ${row('#/info', 'bell', '地域の設定', '警報・注意報・天気予報を出す地域')}
+      ${row('#/privacy', 'shield', 'プライバシーポリシー', '集めない情報・端末に保存する情報')}
+      ${row('#/about', 'info', 'このアプリについて', 'ご利用上の注意・出典・問い合わせ')}
+    </div>
+    <button class="btn plain" id="wipe">この端末の保存データを消す</button>`;
   }
   // ---------- プライバシーポリシー ----------
   function privacy() {
-    return `${back()}${head('shield', 'c-blue', 'プライバシーポリシー', '2026年11月 制定')}
+    return `${back('#/settings', '設定')}${head('shield', 'c-blue', 'プライバシーポリシー', '2026年11月 制定')}
     <div class="box"><h3>1. 集めない情報</h3><p>Bousai Japan は、利用者の情報を集めるサーバーを持っていません。現在地、家族メモ、そなえチェック、トレーニングの結果、設定した地域などを、開発者が受け取ることはありません。アクセス解析や広告のしくみも使っていません。</p></div>
     <div class="box"><h3>2. 端末の中に保存する情報</h3><p>家族メモ、チェック、設定（地域・言語・文字の大きさ）、保存した避難場所データは、お使いの端末のブラウザの中（localStorage・Cache Storage）にだけ保存します。ブラウザのデータを消すか、「このアプリについて」の画面の「保存データを消す」で消せます。</p></div>
     <div class="box"><h3>3. 現在地（位置情報）</h3><p>避難場所までの距離の計算、地図の表示、近くの観測所の天気の表示、無事を知らせる文面への地図リンクの追加（選んだときだけ）に使います。端末の中で計算し、保存せず、開発者には送りません。</p></div>
@@ -601,7 +614,7 @@
     <div class="box"><h3>7. 変更</h3><p>このポリシーを変えるときは、この画面でお知らせします。</p></div>`;
   }
   function about() {
-    return `${back()}${head('info', 'c-blue', 'このアプリについて', 'ご利用上の注意')}
+    return `${back('#/settings', '設定')}${head('info', 'c-blue', 'このアプリについて', 'ご利用上の注意')}
     <div class="box"><p>Bousai Japan は、防災の知識を身につけ、災害時に「次に何をするか」を判断するのを助ける、無料の防災Webアプリです。</p></div>
     <div class="box"><h3>${icon('alert')}ご利用上の注意</h3>
       <p>「情報」画面では、気象庁が発表した警報・注意報・地震・津波・火山の情報と、緊急地震速報（警報）の内容をそのまま表示します。このアプリが独自に警報や予報を出すことはありません。通信の状況により遅れたり届かなかったりすることがあり、緊急地震速報はアプリを開いている間しか受け取れません。スマホ本体の緊急速報（エリアメール等）を必ずオンにしてください。</p>
@@ -614,16 +627,14 @@
     <div class="box"><h3>${icon('book')}出典</h3>${Object.values(SRC).map((s) => `<p style="font-size:14px"><a href="${s.url}" target="_blank" rel="noopener">${esc(s.name)}</a></p>`).join('')}
       <p style="font-size:14px">避難場所データ：国土地理院「指定緊急避難場所・指定避難所データ」をもとに Bousai Japan が加工して作成（公共データ利用規約 第1.0版）。</p>
       <p style="font-size:14px">QRコード：QR Code Generator for JavaScript（Kazuhiko Arase, MIT License）。QRコードは株式会社デンソーウェーブの登録商標です。</p></div>
-    <div class="list">${row('#/privacy', 'shield', 'プライバシーポリシー', '集めない情報・端末に保存する情報')}${row('#/lang', 'info', 'Language・言語', '日本語・やさしい日本語・English')}${row('#/start', 'check', 'はじめての準備', 'データの保存・地域・緊急速報・ホーム画面')}</div>
-    <div class="sec">文字の大きさ</div>
-    <div class="sizes">${[['m', '標準'], ['l', '大'], ['xl', '特大']].map(([k, t]) => `<button data-size="${k}" class="${(store.get('size', 'm')) === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-    <button class="btn plain" id="wipe">この端末の保存データを消す</button>`;
+    <div class="list">${row('#/privacy', 'shield', 'プライバシーポリシー', '集めない情報・端末に保存する情報')}${row('https://github.com/Seg1GPT0Jpn/Bousai-Japan/issues', 'megaphone', 'ご意見・不具合の報告', 'GitHub の問い合わせ欄（Issues）')}</div>`;
   }
 
   // ---------- ルーター ----------
   const NAV = [['', 'home', 'ホーム'], ['info', 'bell', '情報'], ['find', 'pin', '避難場所'], ['learn', 'book', '学ぶ'], ['family', 'users', '家族']];
   function nav(r) {
     const tab = r === 'info' ? 'info' : ['find'].includes(r) ? 'find' : ['learn'].includes(r) ? 'learn' : ['family', 'import'].includes(r) ? 'family' : '';
+    const g = document.getElementById('gearbtn'); if (g) { if (['settings', 'lang', 'about', 'privacy', 'start'].includes(r)) g.setAttribute('aria-current', 'page'); else g.removeAttribute('aria-current'); }
     document.getElementById('nav').innerHTML = NAV.map(([h, ic, t]) => `<a href="#/${h}" class="${h === tab ? 'on' : ''}"${h === tab ? ' aria-current="page"' : ''}>${icon(ic)}${t}</a>`).join('');
   }
   function badge() {
@@ -656,7 +667,7 @@
       case '171': html = t171(); break;
       case 'about': html = about(); break;
       case 'start': html = start(); break;
-      case 'lang': html = langPage(); break;
+      case 'lang': case 'settings': html = settings(); break;
       case 'privacy': html = privacy(); break;
       default: html = home();
     }
@@ -669,7 +680,7 @@
     if (r === '') view.querySelectorAll('[data-hz]').forEach((b) => b.addEventListener('click', () => { store.set('hz', b.dataset.hz); view.querySelectorAll('[data-hz]').forEach((x) => x.classList.toggle('on', x === b)); }));
     if (r === 'info') bindInfo();
     if (r === 'start') bindStart();
-    if (r === 'lang') view.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { I18N.set(b.dataset.lang); location.reload(); }));
+    if (r === 'lang' || r === 'settings') view.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { I18N.set(b.dataset.lang); location.reload(); }));
     if (r === 'weather') bindWeather();
     if (r === '') { fillLive(); tick = setInterval(fillLive, 60000); }
     if (r === 'find') { bindFind().then(() => { if (h[1] === 'go' || HAZARDS.some((x) => x.k === h[1])) { const g = document.getElementById('go'); if (g && !lastPos) g.click(); } }); }
